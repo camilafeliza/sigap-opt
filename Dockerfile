@@ -7,7 +7,7 @@ COPY frontend/ ./
 RUN pnpm build
 
 # Stage 2: Build Backend & Embed Frontend Static Assets
-FROM docker.io/library/rust:1.80-alpine AS backend-builder
+FROM docker.io/library/rust:alpine AS backend-builder
 RUN apk add --no-cache musl-dev gcc g++ make
 WORKDIR /app
 COPY Cargo.toml Cargo.lock ./
@@ -19,7 +19,7 @@ RUN cargo build --release
 
 # Stage 3: Minimal Distroless / Alpine Runtime
 FROM docker.io/library/alpine:3.20 AS runner
-RUN apk add --no-cache ca-certificates tzdata
+RUN apk add --no-cache ca-certificates tzdata libgcc libstdc++
 WORKDIR /app
 COPY --from=backend-builder /app/target/release/sigap-opt /app/sigap-opt
 VOLUME /app/data

@@ -19,7 +19,7 @@ services:
     volumes:
       - sigap-opt-data:/app/data:Z
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:8080/api/health"]
+      test: "wget -qO- http://127.0.0.1:8080/api/health >/dev/null || exit 1"
       interval: 10s
       timeout: 5s
       retries: 3
