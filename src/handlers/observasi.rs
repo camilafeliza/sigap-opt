@@ -1,6 +1,6 @@
 use axum::{
     extract::State,
-    http::StatusCode,
+    http::{header::AUTHORIZATION, HeaderMap, StatusCode},
     response::IntoResponse,
     Json,
 };
@@ -73,10 +73,21 @@ pub async fn list_observasi_handler(
 
 pub async fn create_observasi_handler(
     State(state): State<Arc<AppState>>,
+    headers: HeaderMap,
     Json(payload): Json<CreateObservasiPayload>,
 ) -> Result<impl IntoResponse, (StatusCode, String)> {
     let conn = get_conn(&state.db)
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+    // Extract user_id from JWT token if present
+    let token_user_id = headers
+        .get(AUTHORIZATION)
+        .and_then(|h| h.to_str().ok())
+        .and_then(|auth_str| {
+            let token = auth_str.strip_prefix("Bearer ")?.trim();
+            crate::middleware::verify_jwt_token(&state.config.jwt_secret, token).ok()
+        })
+        .map(|claims| claims.sub);
 
     let id = format!("obs-{}", uuid::Uuid::new_v4());
     let komoditas_nama = payload.komoditas.unwrap_or_else(|| "Padi".to_string());
@@ -160,15 +171,19 @@ pub async fn create_observasi_handler(
         "kom-01".to_string()
     };
 
-    let u_row = conn.query("SELECT id FROM users LIMIT 1", ()).await.ok();
-    let user_id = if let Some(mut rows) = u_row {
-        if let Ok(Some(r)) = rows.next().await {
-            r.get::<String>(0).unwrap_or_else(|_| "usr-petani-01".to_string())
+    let user_id = if let Some(uid) = token_user_id {
+        uid
+    } else {
+        let u_row = conn.query("SELECT id FROM users LIMIT 1", ()).await.ok();
+        if let Some(mut rows) = u_row {
+            if let Ok(Some(r)) = rows.next().await {
+                r.get::<String>(0).unwrap_or_else(|_| "usr-petani-01".to_string())
+            } else {
+                "usr-petani-01".to_string()
+            }
         } else {
             "usr-petani-01".to_string()
         }
-    } else {
-        "usr-petani-01".to_string()
     };
 
     let now = chrono::Utc::now().to_rfc3339();
