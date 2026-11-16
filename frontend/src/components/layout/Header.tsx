@@ -47,14 +47,9 @@ export function Header() {
             title="Buka Pengaturan Profil"
           >
             <Avatar size="md" showIndicator={true} />
-            <div class="flex flex-col">
-              <span class="font-display font-bold text-sm text-slate-800 dark:text-slate-100 tracking-tight truncate max-w-[200px] group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors">
-                {displayName()}
-              </span>
-              <span class="text-[10px] font-medium text-slate-400 dark:text-slate-500 capitalize">
-                {auth.currentUser()?.role === 'superadmin' ? 'Administrator' : 'Petani Lapangan'}
-              </span>
-            </div>
+            <span class="font-display font-bold text-sm text-slate-800 dark:text-slate-100 tracking-tight truncate max-w-[200px] group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors">
+              {displayName()}
+            </span>
           </button>
 
           {/* Badge Peran Pengguna (Clean Functional Status Pill) */}
