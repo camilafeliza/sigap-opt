@@ -69,4 +69,8 @@ pub struct AiIdentifyResponse {
     pub bagian_terserang: String,
     pub confidence_score: f64,
     pub gejala_khas: String,
+    #[serde(default)]
+    pub komoditas: Option<String>,
+    #[serde(default)]
+    pub varietas: Option<String>,
 }

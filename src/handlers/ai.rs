@@ -38,7 +38,11 @@ pub async fn ai_identify_handler(
 
             let prompt_text = r#"
             Anda adalah pakar Pengendalian Hama Terpadu (PHT) agronomi presisi.
-            Analisis foto tanaman ini dan identifikasi organisme pengganggu tumbuhan (OPT), baik berupa hama serangga maupun gejala penyakit cendawan/bakteri/virus.
+            Analisis foto tanaman ini dan identifikasi:
+            1. Organisme pengganggu tumbuhan (OPT), baik berupa hama serangga maupun gejala penyakit cendawan/bakteri/virus.
+            2. Jenis komoditas tanaman inang (misal: "Padi", "Jagung", "Cabai", "Bawang Merah", "Kedelai", dsb).
+            3. Nama varietas tanaman jika dapat diidentifikasi dari morfologi atau varietas unggul lazim untuk komoditas tersebut (misal: "Ciherang", "Inpari 32", "Bisi 18", "TM 99", "Bima Brebes", dsb).
+
             KEMBALIKAN HANYA STRING JSON MURNI TANPA BLOK MARKDOWN ```json:
             {
               "nama_opt": "Nama OPT dalam Bahasa Indonesia",
@@ -46,7 +50,9 @@ pub async fn ai_identify_handler(
               "kategori": "Hama" atau "Penyakit",
               "bagian_terserang": "Daun" atau "Batang" atau "Akar" atau "Malai",
               "confidence_score": 0.94,
-              "gejala_khas": "Deskripsi ringkas gejala khas serangan di lapangan"
+              "gejala_khas": "Deskripsi ringkas gejala khas serangan di lapangan",
+              "komoditas": "Padi" atau "Jagung" atau "Cabai" atau "Bawang Merah" atau "Kedelai",
+              "varietas": "Nama varietas tanaman (misal: Ciherang, Inpari 32, TM 99, Bisi 18)"
             }
             "#;
 
@@ -108,5 +114,7 @@ pub async fn ai_identify_handler(
         bagian_terserang: "Batang".to_string(),
         confidence_score: 0.94,
         gejala_khas: "Batang tanaman mengering dan berwarna kecokelatan (hopperburn) pada rumpun padi.".to_string(),
+        komoditas: Some("Padi".to_string()),
+        varietas: Some("Ciherang".to_string()),
     }))
 }

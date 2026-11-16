@@ -3,13 +3,13 @@ import { useNavigate } from '@solidjs/router';
 import { useAuth } from '../services/auth';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
+import logoImg from '../assets/sigap-opt.png';
 import {
   User as UserIcon,
   LockKey as LockIcon,
   Eye as EyeIcon,
   EyeSlash as EyeSlashIcon,
   SignIn as SignInIcon,
-  ShieldCheck as ShieldIcon,
   WarningCircle as WarningIcon,
 } from 'phosphor-solid';
 
@@ -68,13 +68,13 @@ export default function Login() {
       <div class="w-full max-w-sm">
         {/* App Brand Header */}
         <div class="flex flex-col items-center mb-6">
-          <div class="w-16 h-16 rounded-2xl bg-gradient-to-tr from-violet-700 to-purple-600 flex items-center justify-center text-white shadow-xl shadow-purple-600/25 mb-3 ring-2 ring-purple-100 dark:ring-purple-900">
-            <ShieldIcon size={36} weight="duotone" />
+          <div class="w-full max-w-[270px] p-3 rounded-2xl bg-white dark:bg-white shadow-sm border border-slate-200/80 dark:border-slate-300 flex items-center justify-center">
+            <img
+              src={logoImg || '/sigap-opt.png'}
+              alt="SIGAP OPT"
+              class="w-full h-auto max-h-16 object-contain"
+            />
           </div>
-          <h1 class="font-display text-2xl font-black tracking-tight text-slate-900 dark:text-slate-100">sigap-opt</h1>
-          <span class="font-display inline-flex items-center gap-1 mt-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300">
-            PHT Digital
-          </span>
         </div>
 
         {/* Clean Login Card */}

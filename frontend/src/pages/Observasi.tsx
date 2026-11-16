@@ -34,6 +34,8 @@ interface AiDetectionResult {
   confidence_score: number;
   gejala_khas: string;
   bagian_terserang?: string;
+  komoditas?: string;
+  varietas?: string;
 }
 
 interface ObservasiHistoryItem {
@@ -84,10 +86,17 @@ export default function Observasi() {
   const [activeTab, setActiveTab] = createSignal<'form' | 'history'>('form');
 
   // Form Step 1: Identitas Lahan & Tanaman
+  const [komoditasList, setKomoditasList] = createSignal<string[]>([
+    'Padi', 'Jagung', 'Cabai', 'Bawang Merah', 'Kedelai'
+  ]);
   const [komoditas, setKomoditas] = createSignal('Padi');
   const [varietas, setVarietas] = createSignal('Ciherang');
   const [petak, setPetak] = createSignal('Petak A1');
   const [fase, setFase] = createSignal<'Vegetatif' | 'Generatif'>('Vegetatif');
+
+  // Status Otomatis AI vs Edit Manual (Solusi Halusinasi AI)
+  const [isKomoditasAutoFilled, setIsKomoditasAutoFilled] = createSignal(false);
+  const [isVarietasAutoFilled, setIsVarietasAutoFilled] = createSignal(false);
 
   // Form Step 2: Pemotretan & Analisis AI
   let mobileCameraInputRef: HTMLInputElement | undefined;
@@ -335,6 +344,43 @@ export default function Observasi() {
     analyzeWithAi(dataUrl);
   };
 
+  // Terapkan deteksi Komoditas & Varietas dari AI secara otomatis
+  const applyAiKomoditas = (rawKomoditas?: string, rawVarietas?: string) => {
+    if (!rawKomoditas) return;
+    const trimmed = rawKomoditas.trim();
+    const lower = trimmed.toLowerCase();
+
+    // Normalisasi cerdas nama komoditas baku
+    let matchedKomoditas = trimmed;
+    if (lower.includes('padi') || lower.includes('rice')) {
+      matchedKomoditas = 'Padi';
+    } else if (lower.includes('jagung') || lower.includes('corn') || lower.includes('maize')) {
+      matchedKomoditas = 'Jagung';
+    } else if (lower.includes('cabai') || lower.includes('cabe') || lower.includes('chili') || lower.includes('pepper')) {
+      matchedKomoditas = 'Cabai';
+    } else if (lower.includes('bawang') || lower.includes('shallot') || lower.includes('onion')) {
+      matchedKomoditas = 'Bawang Merah';
+    } else if (lower.includes('kedelai') || lower.includes('soy')) {
+      matchedKomoditas = 'Kedelai';
+    }
+
+    // Pastikan komoditas ada di koleksi pilihan
+    if (!komoditasList().includes(matchedKomoditas)) {
+      setKomoditasList((prev) => [...prev, matchedKomoditas]);
+    }
+    setKomoditas(matchedKomoditas);
+    setIsKomoditasAutoFilled(true);
+
+    // Varietas otomatis dari AI atau varietas unggul preset komoditas
+    let targetVarietas = rawVarietas?.trim();
+    if (!targetVarietas || targetVarietas.toLowerCase().includes('tidak') || targetVarietas.toLowerCase().includes('unknown')) {
+      const presets = VARIETAS_PRESETS[matchedKomoditas];
+      targetVarietas = presets && presets.length > 0 ? presets[0] : 'Ciherang';
+    }
+    setVarietas(targetVarietas);
+    setIsVarietasAutoFilled(true);
+  };
+
   // Eksekusi Analisis AI Multimodal via Proxy Axum Rust
   const analyzeWithAi = async (imageBase64?: string) => {
     const imgData = imageBase64 || imagePreview();
@@ -351,42 +397,54 @@ export default function Observasi() {
         body: JSON.stringify({ image: imgData }),
       });
       if (res.ok) {
-        const data = await res.json();
+        const data: AiDetectionResult = await res.json();
         setAiResult(data);
+        if (data.komoditas) {
+          applyAiKomoditas(data.komoditas, data.varietas);
+        }
       } else {
         throw new Error('Gagal memproses visual');
       }
     } catch {
       // Fallback cerdas berbasis komoditas
       const k = komoditas();
+      let fallbackData: AiDetectionResult;
       if (k === 'Cabai') {
-        setAiResult({
+        fallbackData = {
           nama_opt: 'Kutu Daun (Aphids)',
           nama_ilmiah: 'Aphis gossypii',
           kategori: 'Hama',
           confidence_score: 0.92,
           gejala_khas: 'Daun pucuk menggulung, pertumbuhan terhambat, dan terdapat embun jelaga.',
           bagian_terserang: 'Pucuk Daun',
-        });
+          komoditas: 'Cabai',
+          varietas: 'TM 99',
+        };
       } else if (k === 'Bawang Merah') {
-        setAiResult({
+        fallbackData = {
           nama_opt: 'Ulat Grayak',
           nama_ilmiah: 'Spodoptera litura',
           kategori: 'Hama',
           confidence_score: 0.89,
           gejala_khas: 'Daun berlubang menerawang atau sobek akibat gerekan ulat stadium awal.',
           bagian_terserang: 'Daun',
-        });
+          komoditas: 'Bawang Merah',
+          varietas: 'Bima Brebes',
+        };
       } else {
-        setAiResult({
+        fallbackData = {
           nama_opt: 'Wereng Batang Coklat',
           nama_ilmiah: 'Nilaparvata lugens',
           kategori: 'Hama',
           confidence_score: 0.94,
           gejala_khas: 'Bagian pangkal batang menghitam dan tanaman mengering mirip terbakar (hopperburn).',
           bagian_terserang: 'Pangkal Batang',
-        });
+          komoditas: 'Padi',
+          varietas: 'Ciherang',
+        };
       }
+      setAiResult(fallbackData);
+      applyAiKomoditas(fallbackData.komoditas, fallbackData.varietas);
     } finally {
       setIsAnalyzing(false);
     }
@@ -409,6 +467,8 @@ export default function Observasi() {
   const handleResetForm = () => {
     setImagePreview(null);
     setAiResult(null);
+    setIsKomoditasAutoFilled(false);
+    setIsVarietasAutoFilled(false);
     setTotalTerserang(0);
     setSkala0(45);
     setSkala1(5);
@@ -441,7 +501,7 @@ export default function Observasi() {
 
     try {
       const payload = {
-        komoditas: `${komoditas()} ${varietas()}`,
+        komoditas: komoditas(),
         varietas: varietas(),
         petak: petak(),
         fase: fase(),
@@ -534,27 +594,56 @@ export default function Observasi() {
             </div>
 
             <div class="grid grid-cols-2 gap-2.5">
-              <CustomSelect
-                label="KOMODITAS"
-                items={['Padi', 'Jagung', 'Cabai', 'Bawang Merah', 'Kedelai']}
-                value={komoditas()}
-                onChange={(val) => {
-                  setKomoditas(val);
-                  const presets = VARIETAS_PRESETS[val];
-                  if (presets && presets.length > 0) {
-                    setVarietas(presets[0]);
-                  }
-                }}
-              />
+              <div>
+                <div class="flex items-center justify-between mb-1">
+                  <label class="font-display block text-[10px] font-bold text-slate-500 dark:text-slate-400">
+                    KOMODITAS
+                  </label>
+                  <Show when={isKomoditasAutoFilled()}>
+                    <span
+                      class="text-[9px] px-1.5 py-0.2 rounded bg-purple-100 dark:bg-purple-900/60 text-purple-700 dark:text-purple-300 font-bold flex items-center gap-0.5"
+                      title="Terisi otomatis oleh AI. Anda bisa mengubahnya jika tidak sesuai."
+                    >
+                      <SparkleIcon size={9} weight="bold" /> AI
+                    </span>
+                  </Show>
+                </div>
+                <CustomSelect
+                  items={komoditasList()}
+                  value={komoditas()}
+                  onChange={(val) => {
+                    setKomoditas(val);
+                    setIsKomoditasAutoFilled(false);
+                    const presets = VARIETAS_PRESETS[val];
+                    if (presets && presets.length > 0) {
+                      setVarietas(presets[0]);
+                      setIsVarietasAutoFilled(false);
+                    }
+                  }}
+                />
+              </div>
 
               <div>
-                <label class="font-display block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1">
-                  VARIETAS
-                </label>
+                <div class="flex items-center justify-between mb-1">
+                  <label class="font-display block text-[10px] font-bold text-slate-500 dark:text-slate-400">
+                    VARIETAS
+                  </label>
+                  <Show when={isVarietasAutoFilled()}>
+                    <span
+                      class="text-[9px] px-1.5 py-0.2 rounded bg-purple-100 dark:bg-purple-900/60 text-purple-700 dark:text-purple-300 font-bold flex items-center gap-0.5"
+                      title="Terisi otomatis oleh AI. Anda bisa mengeditnya manual jika halusinasi."
+                    >
+                      <SparkleIcon size={9} weight="bold" /> AI
+                    </span>
+                  </Show>
+                </div>
                 <input
                   type="text"
                   value={varietas()}
-                  onInput={(e) => setVarietas(e.currentTarget.value)}
+                  onInput={(e) => {
+                    setVarietas(e.currentTarget.value);
+                    setIsVarietasAutoFilled(false);
+                  }}
                   placeholder="Nama Varietas"
                   class="font-data w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-800 dark:text-slate-100 focus:outline-none focus:border-violet-600 shadow-sm"
                   required
@@ -614,7 +703,10 @@ export default function Observasi() {
                   {(v) => (
                     <button
                       type="button"
-                      onClick={() => setVarietas(v)}
+                      onClick={() => {
+                        setVarietas(v);
+                        setIsVarietasAutoFilled(false);
+                      }}
                       class={`text-[10px] font-display font-bold px-2 py-0.5 rounded-lg border transition-all ${
                         varietas() === v
                           ? 'border-violet-500 bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300'
@@ -635,29 +727,24 @@ export default function Observasi() {
               <div class="flex items-center gap-2">
                 <CameraIcon size={18} class="text-orange-500" weight="bold" />
                 <span class="font-display font-bold text-xs uppercase tracking-wider text-slate-800 dark:text-slate-200">
-                  Visual OPT & AI
+                  Visual OPT
                 </span>
               </div>
-              <div class="flex items-center gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => setManualOptOverride(!manualOptOverride())}
-                  class="font-display text-[10px] font-bold text-violet-600 dark:text-violet-400 hover:underline flex items-center gap-1"
-                >
-                  <ListIcon size={12} weight="bold" />
-                  <span>{manualOptOverride() ? 'Tutup Katalog' : 'Katalog OPT'}</span>
-                </button>
-                <span class="font-display text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300">
-                  Gemini Vision
-                </span>
-              </div>
+              <button
+                type="button"
+                onClick={() => setManualOptOverride(!manualOptOverride())}
+                class="font-display text-[10px] font-bold text-violet-600 dark:text-violet-400 hover:underline flex items-center gap-1"
+              >
+                <ListIcon size={12} weight="bold" />
+                <span>{manualOptOverride() ? 'Tutup' : 'Katalog'}</span>
+              </button>
             </div>
 
             {/* Menu Dropdown Manual Override OPT Katalog */}
             <Show when={manualOptOverride()}>
               <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 space-y-2">
                 <span class="font-display text-[11px] font-bold text-slate-700 dark:text-slate-300 block">
-                  Pilih Organisme Pengganggu dari Katalog:
+                  Pilih dari katalog:
                 </span>
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-1.5 max-h-48 overflow-y-auto pr-1">
                   <For each={OPT_KATALOG_LIST}>
@@ -697,18 +784,18 @@ export default function Observasi() {
                         <CameraIcon size={28} weight="bold" />
                       </div>
                       <span class="font-display font-black text-sm text-slate-800 dark:text-slate-100">
-                        Ambil Foto OPT
+                        Foto OPT
                       </span>
                       <span class="font-data text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-                        Potret langsung hama atau gejala daun di lapangan
+                        Hama atau gejala daun
                       </span>
                     </button>
 
-                    {/* Opsi Unggah dari Galeri / Berkas Foto */}
+                    {/* Opsi Unggah dari Galeri */}
                     <div class="flex items-center justify-center pt-0.5">
                       <label class="font-display font-bold text-xs text-slate-600 dark:text-slate-400 hover:text-violet-700 dark:hover:text-purple-300 flex items-center gap-1.5 cursor-pointer py-1.5 px-3 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
                         <UploadIcon size={15} weight="bold" />
-                        <span>Pilih dari galeri / berkas foto</span>
+                        <span>Pilih dari galeri</span>
                         <input
                           type="file"
                           accept="image/*"
@@ -773,19 +860,19 @@ export default function Observasi() {
 
               {/* Status Scanning AI */}
               <Show when={isAnalyzing()}>
-                <div class="p-3.5 rounded-xl bg-purple-50 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-800 flex items-center gap-3">
-                  <div class="animate-spin text-purple-600">
-                    <SparkleIcon size={22} weight="bold" />
+                <div class="p-3 rounded-xl bg-purple-50 dark:bg-purple-950/40 border border-purple-200/80 dark:border-purple-800/80 flex items-center gap-2.5">
+                  <div class="animate-spin text-purple-600 dark:text-purple-400">
+                    <SparkleIcon size={18} weight="bold" />
                   </div>
-                  <div class="text-xs font-display font-bold text-purple-900 dark:text-purple-200">
-                    Menganalisis citra dengan Google Gemini Vision...
-                  </div>
+                  <span class="text-xs font-display font-bold text-purple-900 dark:text-purple-200">
+                    Menganalisis...
+                  </span>
                 </div>
               </Show>
 
-              {/* Hasil Identifikasi AI Vision */}
+              {/* Hasil Identifikasi AI */}
               <Show when={aiResult() && !isAnalyzing()}>
-                <div class="p-3.5 rounded-xl bg-purple-50/80 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-900/60 space-y-1.5 shadow-sm">
+                <div class="p-3 rounded-xl bg-purple-50/70 dark:bg-purple-950/40 border border-purple-200/80 dark:border-purple-900/60 space-y-1.5 shadow-xs">
                   <div class="flex items-center justify-between">
                     <div class="flex items-center gap-1.5">
                       <BugIcon size={16} weight="bold" class="text-purple-600 dark:text-purple-400" />
@@ -794,15 +881,25 @@ export default function Observasi() {
                       </span>
                     </div>
                     <span class="font-display text-[10px] font-black px-2 py-0.5 rounded-full bg-violet-600 text-white shadow-xs">
-                      {Math.round(aiResult()!.confidence_score * 100)}% Keyakinan
+                      {Math.round(aiResult()!.confidence_score * 100)}%
                     </span>
                   </div>
                   <p class="font-data text-xs text-purple-800 dark:text-purple-300 italic">
-                    {aiResult()!.nama_ilmiah} &middot; Kategori: {aiResult()!.kategori}
+                    {aiResult()!.nama_ilmiah}
                   </p>
-                  <p class="font-data text-[11px] text-purple-900 dark:text-purple-200 leading-relaxed pt-0.5">
-                    {aiResult()!.gejala_khas}
-                  </p>
+                  <Show when={aiResult()!.gejala_khas}>
+                    <p class="font-data text-[11px] text-purple-900 dark:text-purple-200 leading-relaxed pt-0.5">
+                      {aiResult()!.gejala_khas}
+                    </p>
+                  </Show>
+                  <Show when={aiResult()!.komoditas}>
+                    <div class="flex items-center justify-between pt-1 border-t border-purple-200/60 dark:border-purple-800/60 text-[10px] font-data text-purple-900 dark:text-purple-200">
+                      <span class="font-display font-bold">Inang Terdeteksi:</span>
+                      <span class="font-bold">
+                        {aiResult()!.komoditas} {aiResult()!.varietas ? `(${aiResult()!.varietas})` : ''}
+                      </span>
+                    </div>
+                  </Show>
                 </div>
               </Show>
             </div>
@@ -1043,7 +1140,7 @@ export default function Observasi() {
               class="shadow-brand-orange"
             >
               <FloppyDiskIcon size={20} weight="bold" />
-              <span>Rekam Observasi Lahan</span>
+              <span>Simpan Observasi</span>
             </Button>
           </div>
         </form>

@@ -159,13 +159,26 @@ pub async fn create_observasi_handler(
         ("AMAN", rek_aman)
     };
 
-    // Ambil default komoditas_id & user_id
-    let k_row = conn.query("SELECT id FROM komoditas LIMIT 1", ()).await.ok();
+    // Ambil komoditas_id yang cocok berdasarkan nama komoditas yang diinput pengguna/AI
+    let k_row = conn
+        .query(
+            "SELECT id FROM komoditas WHERE LOWER(nama) = LOWER(?1) OR ?1 LIKE '%' || nama || '%' LIMIT 1",
+            [komoditas_nama.as_str()],
+        )
+        .await
+        .ok();
     let komoditas_id = if let Some(mut rows) = k_row {
         if let Ok(Some(r)) = rows.next().await {
             r.get::<String>(0).unwrap_or_else(|_| "kom-01".to_string())
         } else {
-            "kom-01".to_string()
+            let new_k_id = format!("kom-{}", &uuid::Uuid::new_v4().to_string()[..8]);
+            let _ = conn
+                .execute(
+                    "INSERT OR IGNORE INTO komoditas (id, nama, varietas) VALUES (?1, ?2, ?3)",
+                    libsql::params![new_k_id.as_str(), komoditas_nama.as_str(), varietas.as_str()],
+                )
+                .await;
+            new_k_id
         }
     } else {
         "kom-01".to_string()

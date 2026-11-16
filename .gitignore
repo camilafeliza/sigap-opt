@@ -13,6 +13,7 @@ frontend/dist/
 *.db-shm
 *.db-wal
 data/
+contoh-hama.jpeg
 
 # Environment & credentials
 .env
