@@ -4,6 +4,7 @@ import { useAuth } from '../services/auth';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import { DialogModal } from '../components/ui/Dialog';
+import { CameraModal } from '../components/ui/CameraModal';
 import { CustomSelect } from '../components/ui/Select';
 import {
   Camera as CameraIcon,
@@ -87,6 +88,7 @@ export default function Observasi() {
 
   // Form Step 2: Pemotretan & Analisis AI
   const [imagePreview, setImagePreview] = createSignal<string | null>(null);
+  const [isCameraOpen, setIsCameraOpen] = createSignal(false);
   const [isAnalyzing, setIsAnalyzing] = createSignal(false);
   const [aiResult, setAiResult] = createSignal<AiDetectionResult | null>(null);
   const [manualOptOverride, setManualOptOverride] = createSignal(false);
@@ -281,6 +283,13 @@ export default function Observasi() {
         reader.readAsDataURL(file);
       }
     }
+  };
+
+  // Handler Tangkapan Kamera Langsung
+  const handleCameraCapture = (dataUrl: string) => {
+    setIsCameraOpen(false);
+    setImagePreview(dataUrl);
+    analyzeWithAi(dataUrl);
   };
 
   // Eksekusi Analisis AI Multimodal via Proxy Axum Rust
@@ -617,24 +626,38 @@ export default function Observasi() {
               <Show
                 when={imagePreview()}
                 fallback={
-                  <label class="flex flex-col items-center justify-center p-6 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-2xl cursor-pointer hover:border-violet-500 dark:hover:border-violet-400 bg-slate-50/50 dark:bg-slate-800/40 transition-colors group">
-                    <div class="w-12 h-12 rounded-2xl bg-orange-100 dark:bg-orange-950/50 text-orange-600 dark:text-orange-400 flex items-center justify-center mb-2 group-hover:scale-105 transition-transform">
-                      <CameraIcon size={24} weight="bold" />
+                  <div class="space-y-2">
+                    {/* Tombol Utama: Buka Kamera Langsung */}
+                    <button
+                      type="button"
+                      onClick={() => setIsCameraOpen(true)}
+                      class="w-full flex flex-col items-center justify-center p-6 border-2 border-dashed border-orange-300 dark:border-orange-800/80 rounded-2xl hover:border-orange-500 dark:hover:border-orange-500 bg-orange-50/40 dark:bg-orange-950/20 hover:bg-orange-50/80 transition-all group active:scale-[0.99] cursor-pointer"
+                    >
+                      <div class="w-14 h-14 rounded-2xl bg-orange-500 text-white flex items-center justify-center mb-2.5 shadow-md shadow-orange-500/30 group-hover:scale-105 transition-transform">
+                        <CameraIcon size={28} weight="bold" />
+                      </div>
+                      <span class="font-display font-black text-sm text-slate-800 dark:text-slate-100">
+                        Buka Kamera OPT
+                      </span>
+                      <span class="font-data text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                        Potret langsung hama atau gejala daun di lapangan
+                      </span>
+                    </button>
+
+                    {/* Opsi Fallback: Unggah dari Galeri / Berkas */}
+                    <div class="flex items-center justify-center pt-0.5">
+                      <label class="font-display font-bold text-xs text-violet-700 dark:text-purple-400 hover:underline flex items-center gap-1.5 cursor-pointer py-1.5 px-3 rounded-xl hover:bg-purple-50 dark:hover:bg-purple-950/40 transition-colors">
+                        <UploadIcon size={16} weight="bold" />
+                        <span>Atau pilih dari galeri / berkas foto</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handlePhotoSelect}
+                          class="hidden"
+                        />
+                      </label>
                     </div>
-                    <span class="font-display font-bold text-xs text-slate-700 dark:text-slate-200">
-                      Ambil Foto OPT Tanaman
-                    </span>
-                    <span class="font-data text-[10px] text-slate-400 mt-0.5">
-                      Kamera Otomatis atau Galeri (Kompresi Efisien)
-                    </span>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      capture="environment"
-                      onChange={handlePhotoSelect}
-                      class="hidden"
-                    />
-                  </label>
+                  </div>
                 }
               >
                 <div class="relative rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-700 aspect-video bg-black flex items-center justify-center shadow-inner">
@@ -644,13 +667,21 @@ export default function Observasi() {
                     class="w-full h-full object-cover"
                   />
                   <div class="absolute bottom-2 right-2 flex items-center gap-1.5">
-                    <label class="px-2.5 py-1.5 rounded-xl bg-slate-900/85 backdrop-blur-md text-white font-display font-bold text-[10px] flex items-center gap-1 cursor-pointer hover:bg-slate-900 transition-colors shadow-sm">
+                    <button
+                      type="button"
+                      onClick={() => setIsCameraOpen(true)}
+                      class="px-2.5 py-1.5 rounded-xl bg-orange-600/90 hover:bg-orange-600 backdrop-blur-md text-white font-display font-bold text-[10px] flex items-center gap-1 transition-colors shadow-sm cursor-pointer"
+                      title="Potret Ulang Kamera"
+                    >
                       <CameraIcon size={12} weight="bold" />
-                      <span>Ubah Foto</span>
+                      <span>Foto Ulang</span>
+                    </button>
+                    <label class="px-2.5 py-1.5 rounded-xl bg-slate-900/85 hover:bg-slate-900 backdrop-blur-md text-white font-display font-bold text-[10px] flex items-center gap-1 cursor-pointer transition-colors shadow-sm">
+                      <UploadIcon size={12} weight="bold" />
+                      <span>Galeri</span>
                       <input
                         type="file"
                         accept="image/*"
-                        capture="environment"
                         onChange={handlePhotoSelect}
                         class="hidden"
                       />
@@ -661,7 +692,7 @@ export default function Observasi() {
                         setImagePreview(null);
                         setAiResult(null);
                       }}
-                      class="p-1.5 rounded-xl bg-red-600/85 backdrop-blur-md text-white hover:bg-red-700 transition-colors shadow-sm"
+                      class="p-1.5 rounded-xl bg-red-600/85 hover:bg-red-700 backdrop-blur-md text-white transition-colors shadow-sm cursor-pointer"
                       title="Hapus Foto"
                     >
                       <CloseIcon size={12} weight="bold" />
@@ -1148,6 +1179,13 @@ export default function Observasi() {
           </div>
         </div>
       </DialogModal>
+
+      {/* Modal Viewfinder Kamera Lapangan */}
+      <CameraModal
+        open={isCameraOpen()}
+        onClose={() => setIsCameraOpen(false)}
+        onCapture={handleCameraCapture}
+      />
     </div>
   );
 }
