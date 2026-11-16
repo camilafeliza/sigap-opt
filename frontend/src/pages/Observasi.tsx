@@ -213,23 +213,46 @@ export default function Observasi() {
     });
   };
 
-  // Dynamic Lookup Ambang Batas PHT dari LibSQL
+  // Dynamic Lookup Ambang Batas PHT dari LibSQL dengan prioritas konteks spesifik:
+  // Komoditas + OPT + Fase Pertumbuhan (GEMINI.md Bab 7 & 8)
   const activeAmbang = createMemo(() => {
     const k = komoditas().toLowerCase();
     const f = fase();
     const opt = aiResult()?.nama_opt?.toLowerCase() || '';
     const list = ambangList();
     if (!list.length) return null;
-    return (
-      list.find((a) => {
-        const aKom = (a.komoditas || '').toLowerCase();
-        const aOpt = (a.opt || '').toLowerCase();
-        const matchKom = aKom.includes(k) || k.includes(aKom);
-        const matchFase = a.fase === 'Semua Fase' || a.fase === f;
-        const matchOpt = opt && aOpt.includes(opt);
-        return matchKom && (matchFase || matchOpt);
-      }) || list[0]
-    );
+
+    // 1. Prioritas Utama: Komoditas + OPT + Fase Persis
+    const exact = list.find((a) => {
+      const aKom = (a.komoditas || '').toLowerCase();
+      const aOpt = (a.opt || '').toLowerCase();
+      const matchKom = aKom.includes(k) || k.includes(aKom);
+      const matchOpt = opt && (aOpt.includes(opt) || opt.includes(aOpt));
+      const matchFase = a.fase === f;
+      return matchKom && matchOpt && matchFase;
+    });
+    if (exact) return exact;
+
+    // 2. Prioritas Kedua: Komoditas + OPT (Semua Fase)
+    const optAnyPhase = list.find((a) => {
+      const aKom = (a.komoditas || '').toLowerCase();
+      const aOpt = (a.opt || '').toLowerCase();
+      const matchKom = aKom.includes(k) || k.includes(aKom);
+      const matchOpt = opt && (aOpt.includes(opt) || opt.includes(aOpt));
+      return matchKom && matchOpt;
+    });
+    if (optAnyPhase) return optAnyPhase;
+
+    // 3. Prioritas Ketiga: Komoditas + Fase
+    const komFase = list.find((a) => {
+      const aKom = (a.komoditas || '').toLowerCase();
+      const matchKom = aKom.includes(k) || k.includes(aKom);
+      const matchFase = a.fase === 'Semua Fase' || a.fase === f;
+      return matchKom && matchFase;
+    });
+    if (komFase) return komFase;
+
+    return list[0];
   });
 
   const thresholdWaspada = createMemo(() => activeAmbang()?.nilai_waspada_persen ?? 5.0);

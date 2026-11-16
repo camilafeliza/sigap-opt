@@ -8,10 +8,13 @@ import { CustomSelect } from '../components/ui/Select';
 import {
   SlidersHorizontal as SlidersIcon,
   Plus as PlusIcon,
+  Trash as TrashIcon,
+  Leaf as LeafIcon,
+  Bug as BugIcon,
+  Target as TargetIcon,
+  Scales as ScalesIcon,
   ShieldCheck as ShieldIcon,
   WarningCircle as WarningIcon,
-  Leaf as LeafIcon,
-  Sliders as ParamIcon,
 } from 'phosphor-solid';
 
 interface AmbangItem {
@@ -27,10 +30,22 @@ interface AmbangItem {
   rekomendasi_bahaya: string;
 }
 
+// Preset saran OPT agronomi per Komoditas untuk mempermudah Administrator
+const OPT_PRESETS_BY_KOMODITAS: Record<string, string[]> = {
+  Padi: ['Wereng Batang Coklat', 'Penggerek Batang Padi', 'Blas Daun', 'Hawar Daun Bakteri', 'Walang Sangit'],
+  Jagung: ['Ulat Grayak Jagung (FAW)', 'Penggerek Batang Jagung', 'Bulai Jagung', 'Bercak Daun'],
+  Cabai: ['Kutu Daun (Aphids)', 'Lalat Buah', 'Antraknosa', 'Thrips'],
+  'Bawang Merah': ['Ulat Grayak (Spodoptera)', 'Bercak Ungu (Alternaria)', 'Layu Fusarium'],
+  Kedelai: ['Ulat Grayak', 'Kepik Hijau', 'Karat Daun', 'Ulat Penggulung Daun'],
+};
+
+const SATUAN_OPTIONS = ['%', 'ekor/rumpun', 'ekor/perangkap', 'larva/tanaman'];
+const FASE_OPTIONS: ('Vegetatif' | 'Generatif' | 'Semua Fase')[] = ['Vegetatif', 'Generatif', 'Semua Fase'];
+
 export default function AmbangEkonomi() {
   const auth = useAuth();
 
-  // Strict RBAC Guard: Super Admin Only
+  // Strict RBAC Guard: Super Admin Only (GEMINI.md Bab 5 & 8)
   if (!auth.isSuperAdmin()) {
     return <Navigate href="/dashboard" />;
   }
@@ -40,13 +55,28 @@ export default function AmbangEkonomi() {
   const [filterKomoditas, setFilterKomoditas] = createSignal<string>('SEMUA');
   const [createModalOpen, setCreateModalOpen] = createSignal(false);
   const [selectedAmbang, setSelectedAmbang] = createSignal<AmbangItem | null>(null);
+  const [isDeleting, setIsDeleting] = createSignal(false);
 
-  // Form State
+  // Form State: Variabel Identitas Konteks Wajib
   const [komoditas, setKomoditas] = createSignal('Padi');
   const [optNama, setOptNama] = createSignal('');
-  const [fase, setFase] = createSignal<'Vegetatif' | 'Generatif'>('Vegetatif');
+  const [fase, setFase] = createSignal<'Vegetatif' | 'Generatif' | 'Semua Fase'>('Vegetatif');
+
+  // Form State: Nilai Ambang & Satuan Ukur Wajib
+  const [satuan, setSatuan] = createSignal<string>('%');
   const [nilaiWaspada, setNilaiWaspada] = createSignal(5.0);
   const [nilaiAmbang, setNilaiAmbang] = createSignal(10.0);
+
+  // Form State: Rekomendasi PHT Berjenjang
+  const [rekomendasiAman, setRekomendasiAman] = createSignal(
+    'Pemantauan rutin mingguan dan pelestarian agens hayati musuh alami.'
+  );
+  const [rekomendasiWaspada, setRekomendasiWaspada] = createSignal(
+    'Pengendalian fisik/mekanis, sanitasi inang, dan aplikasi biopestisida.'
+  );
+  const [rekomendasiBahaya, setRekomendasiBahaya] = createSignal(
+    'Intervensi darurat: Insektisida/fungisida kimia selektif sesuai prinsip tepat dosis.'
+  );
   const [isSubmitting, setIsSubmitting] = createSignal(false);
 
   const fetchAmbang = async () => {
@@ -57,24 +87,24 @@ export default function AmbangEkonomi() {
         setAmbangList(data);
       }
     } catch {
-      // Fallback
+      // Fallback lokal
       setAmbangList([
         {
-          id: 'ambang-01',
+          id: 'amb-01',
           komoditas: 'Padi',
-          opt: 'Wereng Batang Coklat (Nilaparvata lugens)',
+          opt: 'Wereng Batang Coklat',
           fase: 'Vegetatif',
           nilai_waspada_persen: 5.0,
           nilai_ambang_ekonomi_persen: 10.0,
           satuan: '%',
-          rekomendasi_aman: 'Pemantauan rutin dan pelestarian musuh alami.',
+          rekomendasi_aman: 'Pemantauan rutin dan pelestarian musuh alami laba-laba serigala.',
           rekomendasi_waspada: 'Pengeringan sawah berselang dan agens hayati Beauveria bassiana.',
           rekomendasi_bahaya: 'Aplikasi insektisida kimia selektif pimetrozin/buprofezin tepat sasaran.',
         },
         {
-          id: 'ambang-02',
+          id: 'amb-02',
           komoditas: 'Padi',
-          opt: 'Penggerek Batang Padi (Scirpophaga incertulas)',
+          opt: 'Penggerek Batang Padi',
           fase: 'Vegetatif',
           nilai_waspada_persen: 3.0,
           nilai_ambang_ekonomi_persen: 6.0,
@@ -82,6 +112,18 @@ export default function AmbangEkonomi() {
           rekomendasi_aman: 'Sanitasi jerami dan pengamatan kelompok telur.',
           rekomendasi_waspada: 'Pelepasan parasitoid telur Trichogramma japonicum.',
           rekomendasi_bahaya: 'Insektisida sistemik granula pada perakaran.',
+        },
+        {
+          id: 'amb-03',
+          komoditas: 'Cabai',
+          opt: 'Kutu Daun (Aphids)',
+          fase: 'Semua Fase',
+          nilai_waspada_persen: 5.0,
+          nilai_ambang_ekonomi_persen: 10.0,
+          satuan: '%',
+          rekomendasi_aman: 'Pelestarian musuh alami kumbang kubah Coccinellidae.',
+          rekomendasi_waspada: 'Pemasangan perangkap likat kuning dan semprotan air bertekanan.',
+          rekomendasi_bahaya: 'Aplikasi insektisida kimia selektif berbahan aktif abamektin.',
         },
       ]);
     } finally {
@@ -93,6 +135,15 @@ export default function AmbangEkonomi() {
     fetchAmbang();
   });
 
+  // Sinkronisasi otomatis saran rekomendasi saat komoditas atau OPT berubah
+  const handleSelectOptPreset = (opt: string) => {
+    setOptNama(opt);
+    const k = komoditas();
+    setRekomendasiAman(`Pemantauan berkala populasi musuh alami pada pertanaman ${k}.`);
+    setRekomendasiWaspada(`Pengendalian mekanis, pemasangan perangkap likat/feromon, dan biopestisida pada ${k}.`);
+    setRekomendasiBahaya(`Intervensi kimia darurat selektif terdaftar pengendali ${opt} dengan prinsip tepat dosis.`);
+  };
+
   const filteredAmbang = () => {
     const k = filterKomoditas();
     if (k === 'SEMUA') return ambangList();
@@ -101,23 +152,28 @@ export default function AmbangEkonomi() {
 
   const handleCreateAmbang = async (e: Event) => {
     e.preventDefault();
+    if (!optNama().trim()) return;
+
     setIsSubmitting(true);
     try {
       const payload = {
         komoditas: komoditas(),
-        opt: optNama(),
+        opt: optNama().trim(),
         fase: fase(),
+        satuan: satuan(),
         nilai_waspada_persen: Number(nilaiWaspada()),
         nilai_ambang_ekonomi_persen: Number(nilaiAmbang()),
-        satuan: '%',
-        rekomendasi_aman: 'Pemantauan rutin populasi musuh alami.',
-        rekomendasi_waspada: 'Pengendalian mekanis dan aplikasi biopestisida.',
-        rekomendasi_bahaya: 'Intervensi kimia selektif sesuai prinsip PHT.',
+        rekomendasi_aman: rekomendasiAman(),
+        rekomendasi_waspada: rekomendasiWaspada(),
+        rekomendasi_bahaya: rekomendasiBahaya(),
       };
 
       const res = await fetch('/api/ambang-ekonomi', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(auth.token() ? { Authorization: `Bearer ${auth.token()}` } : {}),
+        },
         body: JSON.stringify(payload),
       });
 
@@ -130,6 +186,25 @@ export default function AmbangEkonomi() {
       setCreateModalOpen(false);
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleDeleteAmbang = async (id: string) => {
+    if (!confirm('Hapus parameter ambang ekonomi ini?')) return;
+    setIsDeleting(true);
+    try {
+      const res = await fetch(`/api/ambang-ekonomi/${id}`, {
+        method: 'DELETE',
+        headers: {
+          ...(auth.token() ? { Authorization: `Bearer ${auth.token()}` } : {}),
+        },
+      });
+      if (res.ok) {
+        setSelectedAmbang(null);
+        await fetchAmbang();
+      }
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -151,7 +226,10 @@ export default function AmbangEkonomi() {
         <Button
           variant="primary"
           size="sm"
-          onClick={() => setCreateModalOpen(true)}
+          onClick={() => {
+            setOptNama('');
+            setCreateModalOpen(true);
+          }}
           class="shadow-brand-orange"
         >
           <PlusIcon size={16} weight="bold" />
@@ -161,7 +239,7 @@ export default function AmbangEkonomi() {
 
       {/* Filter Tabs Komoditas */}
       <div class="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs">
-        {['SEMUA', 'Padi', 'Jagung', 'Cabai', 'Bawang Merah'].map((kom) => (
+        {['SEMUA', 'Padi', 'Jagung', 'Cabai', 'Bawang Merah', 'Kedelai'].map((kom) => (
           <button
             type="button"
             onClick={() => setFilterKomoditas(kom)}
@@ -183,7 +261,7 @@ export default function AmbangEkonomi() {
           fallback={
             <div class="p-8 text-center bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800">
               <SlidersIcon size={28} weight="duotone" class="mx-auto text-slate-300 dark:text-slate-600 mb-2" />
-              <p class="font-data text-xs text-slate-400">Data ambang belum tersedia</p>
+              <p class="font-data text-xs text-slate-400">Parameter ambang belum tersedia</p>
             </div>
           }
         >
@@ -198,12 +276,15 @@ export default function AmbangEkonomi() {
                   <span class="font-display font-black text-sm text-slate-900 dark:text-slate-100 leading-tight block">
                     {item.opt}
                   </span>
-                  <div class="flex items-center gap-1.5 mt-1">
+                  <div class="flex items-center gap-1.5 mt-1 flex-wrap">
                     <span class="font-display text-[10px] font-bold px-2 py-0.5 rounded-md bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300">
                       {item.komoditas}
                     </span>
-                    <span class="font-data text-[10px] text-slate-400">
-                      Fase: {item.fase}
+                    <span class="font-display text-[10px] font-bold px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+                      {item.fase}
+                    </span>
+                    <span class="font-data text-[10px] text-slate-400 italic">
+                      Satuan: {item.satuan}
                     </span>
                   </div>
                 </div>
@@ -213,7 +294,7 @@ export default function AmbangEkonomi() {
                     AMBANG EKONOMI
                   </span>
                   <span class="font-display font-black text-base text-orange-600 dark:text-orange-400">
-                    {item.nilai_ambang_ekonomi_persen}%
+                    {item.nilai_ambang_ekonomi_persen} {item.satuan}
                   </span>
                 </div>
               </div>
@@ -222,10 +303,10 @@ export default function AmbangEkonomi() {
               <div class="space-y-1 pt-1 border-t border-slate-100 dark:border-slate-800">
                 <div class="flex justify-between text-[10px] font-display font-bold">
                   <span class="text-violet-600 dark:text-purple-400">
-                    Waspada: {item.nilai_waspada_persen}%
+                    Waspada: {item.nilai_waspada_persen} {item.satuan}
                   </span>
                   <span class="text-orange-600 dark:text-orange-400">
-                    Bahaya: ≥{item.nilai_ambang_ekonomi_persen}%
+                    Bahaya: ≥{item.nilai_ambang_ekonomi_persen} {item.satuan}
                   </span>
                 </div>
 
@@ -247,23 +328,35 @@ export default function AmbangEkonomi() {
           if (!open) setSelectedAmbang(null);
         }}
         title={`Parameter: ${selectedAmbang()?.opt ?? ''}`}
-        description={`${selectedAmbang()?.komoditas ?? ''} (${selectedAmbang()?.fase ?? ''})`}
       >
         <Show when={selectedAmbang()}>
           {(item) => (
             <div class="space-y-3 pt-1">
+              {/* Badge Identitas Konteks Lengkap */}
+              <div class="flex items-center gap-1.5 flex-wrap">
+                <span class="font-display text-[10px] font-bold px-2 py-0.5 rounded-md bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300">
+                  Komoditas: {item().komoditas}
+                </span>
+                <span class="font-display text-[10px] font-bold px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
+                  Fase: {item().fase}
+                </span>
+                <span class="font-display text-[10px] font-bold px-2 py-0.5 rounded-md bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300">
+                  Satuan: {item().satuan}
+                </span>
+              </div>
+
               {/* Telemetri Angka Ambang */}
               <div class="grid grid-cols-2 gap-2 p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 text-center">
                 <div>
                   <span class="font-display text-[10px] font-bold text-slate-400">BATAS WASPADA</span>
                   <div class="font-display font-black text-lg text-amber-600 dark:text-amber-400">
-                    {item().nilai_waspada_persen}%
+                    {item().nilai_waspada_persen} {item().satuan}
                   </div>
                 </div>
                 <div>
                   <span class="font-display text-[10px] font-bold text-slate-400">AMBANG EKONOMI</span>
                   <div class="font-display font-black text-lg text-orange-600 dark:text-orange-400">
-                    {item().nilai_ambang_ekonomi_persen}%
+                    {item().nilai_ambang_ekonomi_persen} {item().satuan}
                   </div>
                 </div>
               </div>
@@ -296,73 +389,228 @@ export default function AmbangEkonomi() {
                 </p>
               </div>
 
-              <Button
-                variant="primary"
-                size="md"
-                fullWidth
-                onClick={() => setSelectedAmbang(null)}
-              >
-                <span>Tutup</span>
-              </Button>
+              <div class="pt-2 flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleDeleteAmbang(item().id)}
+                  disabled={isDeleting()}
+                  class="px-4 py-2.5 rounded-xl border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 font-display font-bold text-xs flex items-center gap-1.5 transition-colors cursor-pointer"
+                  title="Hapus Parameter Ini"
+                >
+                  <TrashIcon size={16} weight="bold" />
+                  <span>Hapus</span>
+                </button>
+                <Button
+                  variant="primary"
+                  size="md"
+                  fullWidth
+                  onClick={() => setSelectedAmbang(null)}
+                >
+                  <span>Tutup</span>
+                </Button>
+              </div>
             </div>
           )}
         </Show>
       </DialogModal>
 
-      {/* Ark UI Modal Tambah Ambang Ekonomi */}
+      {/* Ark UI Modal Tambah Ambang Ekonomi (Sesuai Konteks Agronomi Nyata) */}
       <DialogModal
         open={createModalOpen()}
         onOpenChange={setCreateModalOpen}
-        title="Tambah Parameter Ambang"
-        description="Standar PHT berbasis agronomi"
+        title="Parameter Ambang Ekonomi"
       >
-        <form onSubmit={handleCreateAmbang} class="space-y-3 pt-1">
-          <CustomSelect
-            label="KOMODITAS"
-            items={['Padi', 'Jagung', 'Cabai', 'Bawang Merah']}
-            value={komoditas()}
-            onChange={(val) => setKomoditas(val)}
-          />
+        <form onSubmit={handleCreateAmbang} class="space-y-3.5 pt-1">
+          {/* 1. Variabel Identitas Konteks Wajib */}
+          <div class="p-3 rounded-xl bg-purple-50/60 dark:bg-purple-950/30 border border-purple-100 dark:border-purple-900/60 space-y-2.5">
+            <span class="font-display text-[10px] font-black uppercase text-purple-900 dark:text-purple-300 block">
+              1. Konteks Identitas Sasaran
+            </span>
 
-          <div>
-            <label class="font-display block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1">
-              NAMA OPT (HAMA / PENYAKIT)
-            </label>
-            <input
-              type="text"
-              value={optNama()}
-              onInput={(e) => setOptNama(e.currentTarget.value)}
-              placeholder="Contoh: Walang Sangit"
-              class="font-data w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-800 dark:text-slate-100 focus:outline-none focus:border-violet-600"
-              required
+            {/* Komoditas */}
+            <CustomSelect
+              label="KOMODITAS TANAMAN TARGET"
+              items={['Padi', 'Jagung', 'Cabai', 'Bawang Merah', 'Kedelai']}
+              value={komoditas()}
+              onChange={(val) => {
+                setKomoditas(val);
+                const presets = OPT_PRESETS_BY_KOMODITAS[val];
+                if (presets && presets.length > 0) {
+                  handleSelectOptPreset(presets[0]);
+                }
+              }}
             />
-          </div>
 
-          <div class="grid grid-cols-2 gap-2.5">
+            {/* Nama Spesifik OPT */}
             <div>
-              <label class="font-display block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1">
-                BATAS WASPADA (%)
+              <label class="font-display block text-[10px] font-bold text-slate-600 dark:text-slate-400 mb-1">
+                NAMA SPESIFIK OPT (HAMA / PENYAKIT)
               </label>
               <input
-                type="number"
-                step="0.1"
-                value={nilaiWaspada()}
-                onInput={(e) => setNilaiWaspada(Number(e.currentTarget.value) || 5.0)}
-                class="font-data w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-800 dark:text-slate-100 focus:outline-none focus:border-violet-600"
+                type="text"
+                value={optNama()}
+                onInput={(e) => {
+                  setOptNama(e.currentTarget.value);
+                  updateRecommendations(komoditas(), e.currentTarget.value);
+                }}
+                placeholder="Contoh: Wereng Batang Coklat"
+                class="font-data w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-800 dark:text-slate-100 focus:outline-none focus:border-violet-600 shadow-xs"
+                required
+              />
+
+              {/* Quick Chips Preset OPT */}
+              <Show when={OPT_PRESETS_BY_KOMODITAS[komoditas()]}>
+                <div class="pt-1.5 flex items-center gap-1 flex-wrap">
+                  <span class="text-[9px] font-bold text-slate-400 uppercase">Saran:</span>
+                  <For each={OPT_PRESETS_BY_KOMODITAS[komoditas()]}>
+                    {(p) => (
+                      <button
+                        type="button"
+                        onClick={() => handleSelectOptPreset(p)}
+                        class={`text-[9px] font-display font-bold px-2 py-0.5 rounded-lg border transition-all ${
+                          optNama() === p
+                            ? 'border-violet-500 bg-purple-100 dark:bg-purple-900/60 text-purple-700 dark:text-purple-300'
+                            : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-500 dark:text-slate-400'
+                        }`}
+                      >
+                        {p}
+                      </button>
+                    )}
+                  </For>
+                </div>
+              </Show>
+            </div>
+
+            {/* Fase Pertumbuhan Tanaman */}
+            <div>
+              <label class="font-display block text-[10px] font-bold text-slate-600 dark:text-slate-400 mb-1">
+                FASE PERTUMBUHAN TANAMAN
+              </label>
+              <div class="grid grid-cols-3 gap-1 bg-white dark:bg-slate-900 p-0.5 rounded-xl border border-slate-200 dark:border-slate-700">
+                <For each={FASE_OPTIONS}>
+                  {(f) => (
+                    <button
+                      type="button"
+                      onClick={() => setFase(f)}
+                      class={`py-1.5 text-[10px] font-display font-bold rounded-lg transition-all ${
+                        fase() === f
+                          ? 'bg-violet-600 text-white shadow-xs'
+                          : 'text-slate-500 dark:text-slate-400 hover:text-slate-700'
+                      }`}
+                    >
+                      {f}
+                    </button>
+                  )}
+                </For>
+              </div>
+            </div>
+          </div>
+
+          {/* 2. Besaran Nilai Ambang & Satuan Ukur Wajib */}
+          <div class="p-3 rounded-xl bg-orange-50/60 dark:bg-orange-950/20 border border-orange-200/80 dark:border-orange-900/60 space-y-2.5">
+            <span class="font-display text-[10px] font-black uppercase text-orange-900 dark:text-orange-300 block">
+              2. Parameter Batas & Satuan Ukur
+            </span>
+
+            {/* Satuan Ukur */}
+            <div>
+              <label class="font-display block text-[10px] font-bold text-slate-600 dark:text-slate-400 mb-1">
+                SATUAN UKUR PARAMETER
+              </label>
+              <div class="grid grid-cols-2 sm:grid-cols-4 gap-1 bg-white dark:bg-slate-900 p-0.5 rounded-xl border border-slate-200 dark:border-slate-700">
+                <For each={SATUAN_OPTIONS}>
+                  {(s) => (
+                    <button
+                      type="button"
+                      onClick={() => setSatuan(s)}
+                      class={`py-1 text-[10px] font-display font-bold rounded-lg transition-all text-center ${
+                        satuan() === s
+                          ? 'bg-orange-500 text-white shadow-xs'
+                          : 'text-slate-500 dark:text-slate-400'
+                      }`}
+                    >
+                      {s}
+                    </button>
+                  )}
+                </For>
+              </div>
+            </div>
+
+            {/* Besaran Angka Numerik */}
+            <div class="grid grid-cols-2 gap-2.5">
+              <div>
+                <label class="font-display block text-[10px] font-bold text-slate-600 dark:text-slate-400 mb-1">
+                  BATAS WASPADA ({satuan()})
+                </label>
+                <input
+                  type="number"
+                  step="0.1"
+                  min="0"
+                  value={nilaiWaspada()}
+                  onInput={(e) => setNilaiWaspada(Number(e.currentTarget.value) || 0)}
+                  class="font-data w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-800 dark:text-slate-100 focus:outline-none focus:border-amber-500 shadow-xs"
+                  required
+                />
+              </div>
+
+              <div>
+                <label class="font-display block text-[10px] font-bold text-slate-600 dark:text-slate-400 mb-1">
+                  AMBANG EKONOMI ({satuan()})
+                </label>
+                <input
+                  type="number"
+                  step="0.1"
+                  min="0"
+                  value={nilaiAmbang()}
+                  onInput={(e) => setNilaiAmbang(Number(e.currentTarget.value) || 0)}
+                  class="font-data w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-800 dark:text-slate-100 focus:outline-none focus:border-orange-500 shadow-xs"
+                  required
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* 3. Panduan Rekomendasi PHT Berjenjang */}
+          <div class="space-y-2">
+            <span class="font-display text-[10px] font-black uppercase text-slate-500 dark:text-slate-400 block">
+              3. Rekomendasi Tindakan PHT
+            </span>
+
+            <div>
+              <label class="font-display block text-[10px] font-bold text-purple-700 dark:text-purple-400 mb-0.5">
+                Zona Aman
+              </label>
+              <input
+                type="text"
+                value={rekomendasiAman()}
+                onInput={(e) => setRekomendasiAman(e.currentTarget.value)}
+                class="font-data w-full px-3 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-800 dark:text-slate-200 focus:outline-none focus:border-violet-600"
                 required
               />
             </div>
 
             <div>
-              <label class="font-display block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1">
-                AMBANG EKONOMI (%)
+              <label class="font-display block text-[10px] font-bold text-amber-700 dark:text-amber-400 mb-0.5">
+                Zona Waspada
               </label>
               <input
-                type="number"
-                step="0.1"
-                value={nilaiAmbang()}
-                onInput={(e) => setNilaiAmbang(Number(e.currentTarget.value) || 10.0)}
-                class="font-data w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-800 dark:text-slate-100 focus:outline-none focus:border-orange-500"
+                type="text"
+                value={rekomendasiWaspada()}
+                onInput={(e) => setRekomendasiWaspada(e.currentTarget.value)}
+                class="font-data w-full px-3 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-800 dark:text-slate-200 focus:outline-none focus:border-amber-500"
+                required
+              />
+            </div>
+
+            <div>
+              <label class="font-display block text-[10px] font-bold text-orange-700 dark:text-orange-400 mb-0.5">
+                Zona Bahaya (Di Atas Ambang)
+              </label>
+              <input
+                type="text"
+                value={rekomendasiBahaya()}
+                onInput={(e) => setRekomendasiBahaya(e.currentTarget.value)}
+                class="font-data w-full px-3 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-800 dark:text-slate-200 focus:outline-none focus:border-orange-600"
                 required
               />
             </div>

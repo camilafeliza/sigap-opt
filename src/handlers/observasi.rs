@@ -106,8 +106,14 @@ pub async fn create_observasi_handler(
         (raw * 10.0).round() / 10.0
     });
 
-    // Cari ambang batas dinamis dari basis data LibSQL
-    let ambang_rows = conn
+    // Cari ambang batas dinamis dari basis data LibSQL dengan pencocokan konteks presisi:
+    // Prioritas 1: Komoditas + Nama OPT + Fase Pertumbuhan (Vegetatif / Generatif)
+    let mut ambang_res = None;
+    let opt_clean = opt_nama.trim();
+    let kom_clean = komoditas_nama.trim();
+
+    // Query 1: Exact Komoditas + Exact/Fuzzy OPT + Fase yang cocok (atau 'Semua Fase')
+    let q1 = conn
         .query(
             r#"
             SELECT a.nilai_waspada_persen, a.nilai_ambang_ekonomi_persen,
@@ -115,41 +121,68 @@ pub async fn create_observasi_handler(
             FROM ambang_ekonomi a
             JOIN komoditas k ON a.komoditas_id = k.id
             JOIN opt_katalog o ON a.opt_id = o.id
-            WHERE (k.nama LIKE ?1 OR ?1 LIKE '%' || k.nama || '%')
+            WHERE (LOWER(k.nama) = LOWER(?1) OR ?1 LIKE '%' || k.nama || '%' OR k.nama LIKE '%' || ?1 || '%')
+              AND (LOWER(o.nama_opt) = LOWER(?2) OR ?2 LIKE '%' || o.nama_opt || '%' OR o.nama_opt LIKE '%' || ?2 || '%')
+              AND (a.fase_pertumbuhan = ?3 OR a.fase_pertumbuhan = 'Semua Fase')
+            ORDER BY CASE WHEN a.fase_pertumbuhan = ?3 THEN 1 ELSE 2 END
             LIMIT 1
             "#,
-            [format!("%{komoditas_nama}%")],
+            [kom_clean, opt_clean, fase.as_str()],
         )
         .await
         .ok();
 
-    let (waspada, ambang, rek_aman, rek_waspada, rek_bahaya) = if let Some(mut rows) = ambang_rows {
+    if let Some(mut rows) = q1 {
         if let Ok(Some(row)) = rows.next().await {
-            (
+            ambang_res = Some((
                 row.get::<f64>(0).unwrap_or(5.0),
                 row.get::<f64>(1).unwrap_or(10.0),
                 row.get::<String>(2).unwrap_or_default(),
                 row.get::<String>(3).unwrap_or_default(),
                 row.get::<String>(4).unwrap_or_default(),
-            )
-        } else {
-            (
-                5.0,
-                10.0,
-                "Pemantauan berkala dan pelestarian agens hayati.".to_string(),
-                "Pengeringan sawah berselang dan agens hayati.".to_string(),
-                "Intervensi darurat: Insektisida kimia selektif.".to_string(),
-            )
+            ));
         }
-    } else {
-        (
-            5.0,
-            10.0,
-            "Pemantauan berkala dan pelestarian agens hayati.".to_string(),
-            "Pengeringan sawah berselang dan agens hayati.".to_string(),
-            "Intervensi darurat: Insektisida kimia selektif.".to_string(),
-        )
-    };
+    }
+
+    // Query 2 Fallback: Jika OPT spesifik belum terdaftar, cari berdasarkan Komoditas + Fase
+    if ambang_res.is_none() {
+        let q2 = conn
+            .query(
+                r#"
+                SELECT a.nilai_waspada_persen, a.nilai_ambang_ekonomi_persen,
+                       a.rekomendasi_aman, a.rekomendasi_waspada, a.rekomendasi_bahaya
+                FROM ambang_ekonomi a
+                JOIN komoditas k ON a.komoditas_id = k.id
+                WHERE (LOWER(k.nama) = LOWER(?1) OR ?1 LIKE '%' || k.nama || '%' OR k.nama LIKE '%' || ?1 || '%')
+                  AND (a.fase_pertumbuhan = ?2 OR a.fase_pertumbuhan = 'Semua Fase')
+                ORDER BY CASE WHEN a.fase_pertumbuhan = ?2 THEN 1 ELSE 2 END
+                LIMIT 1
+                "#,
+                [kom_clean, fase.as_str()],
+            )
+            .await
+            .ok();
+
+        if let Some(mut rows) = q2 {
+            if let Ok(Some(row)) = rows.next().await {
+                ambang_res = Some((
+                    row.get::<f64>(0).unwrap_or(5.0),
+                    row.get::<f64>(1).unwrap_or(10.0),
+                    row.get::<String>(2).unwrap_or_default(),
+                    row.get::<String>(3).unwrap_or_default(),
+                    row.get::<String>(4).unwrap_or_default(),
+                ));
+            }
+        }
+    }
+
+    let (waspada, ambang, rek_aman, rek_waspada, rek_bahaya) = ambang_res.unwrap_or((
+        5.0,
+        10.0,
+        "Pemantauan berkala dan pelestarian agens hayati.".to_string(),
+        "Pengeringan sawah berselang dan agens hayati.".to_string(),
+        "Intervensi darurat: Insektisida kimia selektif.".to_string(),
+    ));
 
     let (status, rekomendasi) = if intensitas >= ambang {
         ("BAHAYA", rek_bahaya)
