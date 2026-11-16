@@ -1,4 +1,4 @@
-import { createSignal, Show, createMemo } from 'solid-js';
+import { createSignal, Show, createMemo, onMount } from 'solid-js';
 import { useNavigate } from '@solidjs/router';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
@@ -45,6 +45,38 @@ export default function Observasi() {
   // State
   const [isSaving, setIsSaving] = createSignal(false);
   const [successModalOpen, setSuccessModalOpen] = createSignal(false);
+  const [ambangList, setAmbangList] = createSignal<any[]>([]);
+
+  onMount(async () => {
+    try {
+      const res = await fetch('/api/ambang-ekonomi');
+      if (res.ok) {
+        setAmbangList(await res.json());
+      }
+    } catch (_) {}
+  });
+
+  // Dynamic lookup parameter ambang ekonomi berdasarkan komoditas & OPT
+  const activeAmbang = createMemo(() => {
+    const k = komoditas().toLowerCase();
+    const f = fase();
+    const opt = aiResult()?.nama_opt?.toLowerCase() || '';
+    const list = ambangList();
+    if (!list.length) return null;
+    return (
+      list.find((a) => {
+        const aKom = (a.komoditas || '').toLowerCase();
+        const aOpt = (a.opt || '').toLowerCase();
+        const matchKom = aKom.includes(k) || k.includes(aKom);
+        const matchFase = a.fase === 'Semua Fase' || a.fase === f;
+        const matchOpt = opt && aOpt.includes(opt);
+        return matchKom && (matchFase || matchOpt);
+      }) || list[0]
+    );
+  });
+
+  const thresholdWaspada = createMemo(() => activeAmbang()?.nilai_waspada_persen ?? 5.0);
+  const thresholdBahaya = createMemo(() => activeAmbang()?.nilai_ambang_ekonomi_persen ?? 10.0);
 
   // Real-time PHT Calculation: I = (n / N) * 100%
   const intensitasPersen = createMemo(() => {
@@ -54,17 +86,23 @@ export default function Observasi() {
     return Number(((n / N) * 100).toFixed(1));
   });
 
-  // Komparasi Ambang Ekonomi: Waspada >= 5%, Bahaya >= 10%
+  // Komparasi Ambang Ekonomi Dinamis (GEMINI.md SSOT)
   const statusBahaya = createMemo<'AMAN' | 'WASPADA' | 'BAHAYA'>(() => {
     const I = intensitasPersen();
-    if (I >= 10.0) return 'BAHAYA';
-    if (I >= 5.0) return 'WASPADA';
+    if (I >= thresholdBahaya()) return 'BAHAYA';
+    if (I >= thresholdWaspada()) return 'WASPADA';
     return 'AMAN';
   });
 
   // Rekomendasi PHT Berjenjang
   const rekomendasiPht = createMemo(() => {
+    const amb = activeAmbang();
     const s = statusBahaya();
+    if (amb) {
+      if (s === 'BAHAYA') return amb.rekomendasi_bahaya;
+      if (s === 'WASPADA') return amb.rekomendasi_waspada;
+      return amb.rekomendasi_aman;
+    }
     if (s === 'BAHAYA') {
       return '1. Pengendalian mekanis dan sanitasi fokus serangan. 2. Pelepasan agens hayati masif. 3. Darurat: Aplikasi insektisida kimia selektif berbahan aktif terdaftar sesuai rekomendasi petugas pengamat hama (POPT).';
     }

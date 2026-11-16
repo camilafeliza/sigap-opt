@@ -4,7 +4,6 @@ frontend/node_modules/
 
 # Rust build artifacts
 target/
-Cargo.lock
 
 # Frontend build
 frontend/dist/

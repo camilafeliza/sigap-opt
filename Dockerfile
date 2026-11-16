@@ -1,18 +1,28 @@
 # Stage 1: Build Frontend (SolidJS + Ark UI + Tailwind)
 FROM docker.io/library/node:20-alpine AS frontend-builder
 WORKDIR /app/frontend
-COPY frontend/package.json frontend/pnpm-lock.yaml* ./
+COPY frontend/package.json frontend/pnpm-lock.yaml* frontend/pnpm-workspace.yaml* ./
 RUN corepack enable && corepack prepare pnpm@latest --activate && pnpm install --frozen-lockfile
 COPY frontend/ ./
 RUN pnpm build
 
-# Stage 2: Minimal Runtime Environment
-FROM docker.io/library/node:20-alpine AS runner
+# Stage 2: Build Backend & Embed Frontend Static Assets
+FROM docker.io/library/rust:1.80-alpine AS backend-builder
+RUN apk add --no-cache musl-dev gcc g++ make
+WORKDIR /app
+COPY Cargo.toml Cargo.lock ./
+COPY migrations/ ./migrations/
+COPY src/ ./src/
+COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
+ENV RUSTFLAGS="-C target-feature=-crt-static"
+RUN cargo build --release
+
+# Stage 3: Minimal Distroless / Alpine Runtime
+FROM docker.io/library/alpine:3.20 AS runner
 RUN apk add --no-cache ca-certificates tzdata
 WORKDIR /app
-COPY scripts/ ./scripts/
-COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
+COPY --from=backend-builder /app/target/release/sigap-opt /app/sigap-opt
 VOLUME /app/data
-ENV PORT=8080 APP_HOST="0.0.0.0" GEMINI_MODEL="gemini-2.5-flash" DATABASE_URL="file:/app/data/sigap_opt.db"
+ENV DATABASE_URL="file:/app/data/sigap_opt.db" PORT=8080 APP_HOST="0.0.0.0" GEMINI_API_KEY="your-gemini-api-key-here"
 EXPOSE 8080
-ENTRYPOINT ["node", "scripts/mock-backend.js"]
+ENTRYPOINT ["/app/sigap-opt"]

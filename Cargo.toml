@@ -1,0 +1,22 @@
+[package]
+name = "sigap-opt"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+axum = { version = "0.7", features = ["multipart"] }
+tokio = { version = "1", features = ["full"] }
+tower-http = { version = "0.5", features = ["cors", "trace"] }
+tower = { version = "0.4" }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+rust-embed = "8.5"
+mime_guess = "2.0"
+jsonwebtoken = "9.3"
+bcrypt = "0.15"
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+chrono = { version = "0.4", features = ["serde"] }
+uuid = { version = "1.10", features = ["v4", "serde"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+libsql = "0.10"

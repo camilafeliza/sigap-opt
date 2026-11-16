@@ -1,8 +1,8 @@
-import { Show, createSignal } from 'solid-js';
+import { Show, createSignal, For } from 'solid-js';
 import { useLocation, useNavigate } from '@solidjs/router';
 import { useAuth } from '../../services/auth';
 import { useTheme } from '../../services/theme';
-import { useAvatar } from '../../services/avatar';
+import { useAvatar, CARTOON_3D_STYLES } from '../../services/avatar';
 import { DialogModal } from '../ui/Dialog';
 import { Avatar } from '../ui/Avatar';
 import {
@@ -20,30 +20,20 @@ export function Header() {
   const navigate = useNavigate();
   const auth = useAuth();
   const { isDark, toggleTheme, setTheme } = useTheme();
-  const { randomize } = useAvatar();
+  const { style, randomize, setStyle } = useAvatar();
   const [settingsOpen, setSettingsOpen] = createSignal(false);
 
   const isLoginPage = () => location.pathname === '/login';
 
   const handleLogout = () => {
     auth.logout();
+    setSettingsOpen(false);
     navigate('/login', { replace: true });
   };
 
   const displayName = () => {
     const user = auth.currentUser();
     return user?.full_name || user?.username || 'Pengguna';
-  };
-
-  const initials = () => {
-    const name = displayName();
-    return name
-      .split(' ')
-      .map((part) => part[0])
-      .filter(Boolean)
-      .slice(0, 2)
-      .join('')
-      .toUpperCase();
   };
 
   return (
@@ -80,18 +70,18 @@ export function Header() {
               </Show>
             </button>
 
-            {/* Tombol Pengaturan Modal/Halaman */}
+            {/* Tombol Pengaturan Modal (In-place Ark UI Dialog) */}
             <button
               type="button"
-              onClick={() => navigate('/pengaturan')}
+              onClick={() => setSettingsOpen(true)}
               title="Pengaturan"
               class={`p-2 rounded-xl transition-all active:scale-90 ${
-                location.pathname === '/pengaturan'
+                settingsOpen()
                   ? 'text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-950/60'
                   : 'text-slate-400 hover:text-purple-600 dark:hover:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-950/40'
               }`}
             >
-              <GearIcon size={19} weight={location.pathname === '/pengaturan' ? 'fill' : 'bold'} />
+              <GearIcon size={19} weight={settingsOpen() ? 'fill' : 'bold'} />
             </button>
 
             {/* Tombol Keluar */}
@@ -107,15 +97,15 @@ export function Header() {
         </div>
       </header>
 
-      {/* Ark UI Modal Pengaturan Cepat */}
+      {/* Ark UI Modal Pengaturan (Terintegrasi Penuh - Menjaga Strict 5 Routes SSOT) */}
       <DialogModal
         open={settingsOpen()}
         onOpenChange={setSettingsOpen}
-        title="Pengaturan Cepat"
-        description="Pilihan tema & status sesi"
+        title="Pengaturan"
+        description="Preferensi tampilan & profil lapangan"
       >
         <div class="space-y-4">
-          {/* Pemilihan Mode Terang / Gelap */}
+          {/* 1. Pemilihan Mode Terang / Gelap */}
           <div>
             <span class="font-display font-bold text-xs text-slate-700 dark:text-slate-300 block mb-2">
               Mode Tampilan
@@ -165,40 +155,72 @@ export function Header() {
             </div>
           </div>
 
-          {/* Avatar Karakter 3D & Tombol Acak */}
-          <div class="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 flex items-center justify-between">
-            <div class="flex items-center gap-3">
-              <Avatar size="lg" />
-              <div>
-                <p class="font-display font-bold text-xs text-slate-900 dark:text-slate-100">
-                  {displayName()}
-                </p>
-                <p class="font-data text-[10px] text-slate-400">
-                  Karakter 3D
-                </p>
+          {/* 2. Avatar Karakter 3D & Tombol Acak */}
+          <div class="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 space-y-3">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-3">
+                <Avatar size="lg" />
+                <div>
+                  <p class="font-display font-bold text-xs text-slate-900 dark:text-slate-100">
+                    {displayName()}
+                  </p>
+                  <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-display font-bold uppercase bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300">
+                    <ShieldCheckIcon size={10} weight="bold" />
+                    {auth.role()}
+                  </span>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={randomize}
+                class="font-display text-xs font-bold px-3 py-1.5 rounded-xl bg-violet-600 hover:bg-violet-700 active:scale-95 text-white flex items-center gap-1.5 shadow-sm transition-all"
+              >
+                <ShuffleIcon size={14} weight="bold" />
+                <span>Acak</span>
+              </button>
+            </div>
+
+            {/* Pilihan Gaya Avatar 3D */}
+            <div>
+              <span class="font-display font-bold text-[10px] text-slate-500 dark:text-slate-400 block mb-1.5">
+                PILIHAN KARAKTER 3D
+              </span>
+              <div class="grid grid-cols-3 gap-1.5">
+                <For each={CARTOON_3D_STYLES}>
+                  {(item) => (
+                    <button
+                      type="button"
+                      onClick={() => setStyle(item.id)}
+                      class={`px-2 py-1.5 rounded-lg text-[10px] font-display font-bold border text-center transition-all ${
+                        style() === item.id
+                          ? 'border-violet-600 bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300'
+                          : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400'
+                      }`}
+                    >
+                      {item.name}
+                    </button>
+                  )}
+                </For>
               </div>
             </div>
-            <button
-              type="button"
-              onClick={randomize}
-              class="font-display text-xs font-bold px-3 py-1.5 rounded-xl bg-violet-600 hover:bg-violet-700 active:scale-95 text-white flex items-center gap-1.5 shadow-sm transition-all"
-            >
-              <ShuffleIcon size={14} weight="bold" />
-              <span>Acak</span>
-            </button>
           </div>
 
-          {/* Navigasi Lengkap ke Pengaturan */}
-          <div class="pt-1 flex justify-end">
+          {/* 3. Tombol Selesai & Tutup */}
+          <div class="pt-1 flex gap-2">
             <button
               type="button"
-              onClick={() => {
-                setSettingsOpen(false);
-                navigate('/pengaturan');
-              }}
-              class="font-display font-bold text-xs text-purple-600 dark:text-purple-400 hover:underline"
+              onClick={handleLogout}
+              class="w-1/2 py-2.5 rounded-xl border border-red-200 dark:border-red-900/60 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 font-display font-bold text-xs transition-colors flex items-center justify-center gap-1.5"
             >
-              Pengaturan Lengkap &rarr;
+              <SignOutIcon size={16} weight="bold" />
+              <span>Keluar Sesi</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setSettingsOpen(false)}
+              class="w-1/2 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-700 text-white font-display font-bold text-xs shadow-sm transition-colors"
+            >
+              Selesai
             </button>
           </div>
         </div>

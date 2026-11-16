@@ -228,7 +228,7 @@ export default function Dashboard() {
         </Show>
       </div>
 
-      {/* 4. SOTA Grafik Visualisasi: Tren Intensitas vs Ambang Ekonomi */}
+      {/* 4. Visualisasi Grafik: Tren Intensitas vs Ambang Ekonomi */}
       <Card variant="default" class="p-4 space-y-3">
         <div class="flex items-center gap-2">
           <div class="p-1.5 rounded-lg bg-violet-50 dark:bg-purple-950/50 text-violet-700 dark:text-purple-300">
@@ -239,7 +239,7 @@ export default function Dashboard() {
           </h2>
         </div>
 
-        {/* State-of-the-art interactive canvas chart */}
+        {/* Visualisasi tren berkala */}
         <IntensityTrendChart
           data={trendData()}
           thresholdWaspada={5.0}
@@ -247,7 +247,7 @@ export default function Dashboard() {
         />
       </Card>
 
-      {/* 5. SOTA Grafik Visualisasi: Organisme Pengganggu Terbanyak */}
+      {/* 5. Visualisasi Grafik: Organisme Pengganggu Terbanyak */}
       <Card variant="default" class="p-4 space-y-3">
         <div class="flex items-center gap-2">
           <div class="p-1.5 rounded-lg bg-orange-50 dark:bg-orange-950/40 text-orange-600 dark:text-orange-400">

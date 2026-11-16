@@ -9,7 +9,6 @@ import Dashboard from './pages/Dashboard';
 import Observasi from './pages/Observasi';
 import Users from './pages/Users';
 import AmbangEkonomi from './pages/AmbangEkonomi';
-import Pengaturan from './pages/Pengaturan';
 
 const Layout: Component<any> = (props) => {
   return (
@@ -39,13 +38,12 @@ export const App: Component = () => {
         )}
       />
 
-      {/* Halaman Inti PHT */}
+      {/* Halaman Inti PHT (Strict 5 Routes - GEMINI.md SSOT) */}
       <Route path="/login" component={Login} />
       <Route path="/dashboard" component={Dashboard} />
       <Route path="/observasi" component={Observasi} />
       <Route path="/users" component={Users} />
       <Route path="/ambang-ekonomi" component={AmbangEkonomi} />
-      <Route path="/pengaturan" component={Pengaturan} />
 
       {/* Catch-all fallback */}
       <Route path="*404" component={() => <Navigate href="/login" />} />
