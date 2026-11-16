@@ -3,6 +3,7 @@ import { useNavigate } from '@solidjs/router';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import { DialogModal } from '../components/ui/Dialog';
+import { CustomSelect } from '../components/ui/Select';
 import {
   Camera as CameraIcon,
   Sparkle as SparkleIcon,
@@ -204,9 +205,6 @@ export default function Observasi() {
             <h1 class="font-display font-black text-lg text-slate-900 dark:text-slate-100">
               Observasi Lapangan
             </h1>
-            <p class="font-data text-xs text-slate-500 dark:text-slate-400">
-              Identifikasi AI & Kalkulasi Ambang PHT
-            </p>
           </div>
         </div>
       </div>
@@ -222,21 +220,12 @@ export default function Observasi() {
           </div>
 
           <div class="grid grid-cols-2 gap-2.5">
-            <div>
-              <label class="font-display block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1">
-                KOMODITAS
-              </label>
-              <select
-                value={komoditas()}
-                onChange={(e) => setKomoditas(e.currentTarget.value)}
-                class="font-data w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-800 dark:text-slate-100 focus:outline-none focus:border-violet-600"
-              >
-                <option value="Padi">Padi</option>
-                <option value="Jagung">Jagung</option>
-                <option value="Cabai">Cabai</option>
-                <option value="Bawang Merah">Bawang Merah</option>
-              </select>
-            </div>
+            <CustomSelect
+              label="KOMODITAS"
+              items={['Padi', 'Jagung', 'Cabai', 'Bawang Merah']}
+              value={komoditas()}
+              onChange={(val) => setKomoditas(val)}
+            />
 
             <div>
               <label class="font-display block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1">

@@ -9,7 +9,6 @@ import {
   SignOut as SignOutIcon,
   Sun as SunIcon,
   Moon as MoonIcon,
-  Gear as GearIcon,
   CheckCircle as CheckCircleIcon,
   ShieldCheck as ShieldCheckIcon,
   Shuffle as ShuffleIcon,
@@ -19,7 +18,7 @@ export function Header() {
   const location = useLocation();
   const navigate = useNavigate();
   const auth = useAuth();
-  const { isDark, toggleTheme, setTheme } = useTheme();
+  const { isDark, setTheme } = useTheme();
   const { style, randomize, setStyle } = useAvatar();
   const [settingsOpen, setSettingsOpen] = createSignal(false);
 
@@ -45,55 +44,23 @@ export function Header() {
             type="button"
             onClick={() => setSettingsOpen(true)}
             class="flex items-center gap-2.5 text-left group focus:outline-none"
-            title="Buka Pengaturan"
+            title="Buka Pengaturan Profil"
           >
             <Avatar size="md" showIndicator={true} />
-            <span class="font-display font-bold text-sm text-slate-800 dark:text-slate-100 tracking-tight truncate max-w-[180px] group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors">
-              {displayName()}
-            </span>
+            <div class="flex flex-col">
+              <span class="font-display font-bold text-sm text-slate-800 dark:text-slate-100 tracking-tight truncate max-w-[200px] group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors">
+                {displayName()}
+              </span>
+              <span class="text-[10px] font-medium text-slate-400 dark:text-slate-500 capitalize">
+                {auth.currentUser()?.role === 'superadmin' ? 'Administrator' : 'Petani Lapangan'}
+              </span>
+            </div>
           </button>
 
-          {/* Quick Actions: Toggle Tema, Pengaturan, & Logout */}
-          <div class="flex items-center gap-1">
-            {/* Quick Toggle Mode Terang/Gelap (1-Tap Switch) */}
-            <button
-              type="button"
-              onClick={toggleTheme}
-              title={isDark() ? 'Ganti ke Mode Terang' : 'Ganti ke Mode Gelap'}
-              class="p-2 rounded-xl text-slate-500 dark:text-slate-400 hover:text-amber-500 dark:hover:text-amber-400 hover:bg-slate-100 dark:hover:bg-slate-800 active:scale-90 transition-all"
-            >
-              <Show
-                when={isDark()}
-                fallback={<MoonIcon size={19} weight="bold" />}
-              >
-                <SunIcon size={19} weight="bold" class="text-amber-400 animate-spin-slow" />
-              </Show>
-            </button>
-
-            {/* Tombol Pengaturan Modal (In-place Ark UI Dialog) */}
-            <button
-              type="button"
-              onClick={() => setSettingsOpen(true)}
-              title="Pengaturan"
-              class={`p-2 rounded-xl transition-all active:scale-90 ${
-                settingsOpen()
-                  ? 'text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-950/60'
-                  : 'text-slate-400 hover:text-purple-600 dark:hover:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-950/40'
-              }`}
-            >
-              <GearIcon size={19} weight={settingsOpen() ? 'fill' : 'bold'} />
-            </button>
-
-            {/* Tombol Keluar */}
-            <button
-              type="button"
-              onClick={handleLogout}
-              title="Keluar"
-              class="p-2 rounded-xl text-slate-400 hover:text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-950/40 active:scale-95 transition-all"
-            >
-              <SignOutIcon size={19} weight="bold" />
-            </button>
-          </div>
+          {/* Badge Peran Pengguna (Clean Functional Status Pill) */}
+          <span class="text-[11px] font-semibold px-2.5 py-1 rounded-full bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 border border-purple-100 dark:border-purple-900/40 font-['DM_Sans']">
+            {auth.currentUser()?.role === 'superadmin' ? 'Super Admin' : 'Petani'}
+          </span>
         </div>
       </header>
 

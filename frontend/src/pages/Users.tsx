@@ -4,6 +4,7 @@ import { Navigate } from '@solidjs/router';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import { DialogModal } from '../components/ui/Dialog';
+import { CustomSelect } from '../components/ui/Select';
 import {
   Users as UsersIcon,
   UserPlus as UserPlusIcon,
@@ -133,9 +134,6 @@ export default function Users() {
             <h1 class="font-display font-black text-lg text-slate-900 dark:text-slate-100">
               Pengguna
             </h1>
-            <p class="font-data text-xs text-slate-500 dark:text-slate-400">
-              Manajemen Akun Petani & Admin
-            </p>
           </div>
         </div>
 
@@ -278,19 +276,15 @@ export default function Users() {
             />
           </div>
 
-          <div>
-            <label class="font-display block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1">
-              HAK AKSES / ROLE
-            </label>
-            <select
-              value={role()}
-              onChange={(e) => setRole(e.currentTarget.value as any)}
-              class="font-data w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-800 dark:text-slate-100 focus:outline-none focus:border-violet-600"
-            >
-              <option value="petani">Petani Lapangan</option>
-              <option value="superadmin">Super Administrator</option>
-            </select>
-          </div>
+          <CustomSelect
+            label="HAK AKSES / ROLE"
+            items={[
+              { label: 'Petani Lapangan', value: 'petani' },
+              { label: 'Super Administrator', value: 'superadmin' },
+            ]}
+            value={role()}
+            onChange={(val) => setRole(val as any)}
+          />
 
           <div class="pt-2">
             <Button

@@ -4,6 +4,7 @@ import { Navigate } from '@solidjs/router';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import { DialogModal } from '../components/ui/Dialog';
+import { CustomSelect } from '../components/ui/Select';
 import {
   SlidersHorizontal as SlidersIcon,
   Plus as PlusIcon,
@@ -144,9 +145,6 @@ export default function AmbangEkonomi() {
             <h1 class="font-display font-black text-lg text-slate-900 dark:text-slate-100">
               Ambang Ekonomi
             </h1>
-            <p class="font-data text-xs text-slate-500 dark:text-slate-400">
-              Master Parameter Ambang PHT
-            </p>
           </div>
         </div>
 
@@ -319,21 +317,12 @@ export default function AmbangEkonomi() {
         description="Standar PHT berbasis agronomi"
       >
         <form onSubmit={handleCreateAmbang} class="space-y-3 pt-1">
-          <div>
-            <label class="font-display block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1">
-              KOMODITAS
-            </label>
-            <select
-              value={komoditas()}
-              onChange={(e) => setKomoditas(e.currentTarget.value)}
-              class="font-data w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-800 dark:text-slate-100 focus:outline-none focus:border-violet-600"
-            >
-              <option value="Padi">Padi</option>
-              <option value="Jagung">Jagung</option>
-              <option value="Cabai">Cabai</option>
-              <option value="Bawang Merah">Bawang Merah</option>
-            </select>
-          </div>
+          <CustomSelect
+            label="KOMODITAS"
+            items={['Padi', 'Jagung', 'Cabai', 'Bawang Merah']}
+            value={komoditas()}
+            onChange={(val) => setKomoditas(val)}
+          />
 
           <div>
             <label class="font-display block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1">
