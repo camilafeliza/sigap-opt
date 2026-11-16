@@ -10,10 +10,8 @@ import {
   Sparkle as SparkleIcon,
   Calculator as CalculatorIcon,
   FloppyDisk as FloppyDiskIcon,
-  WarningCircle as WarningIcon,
   CheckCircle as CheckCircleIcon,
   Leaf as LeafIcon,
-  ShieldCheck as ShieldIcon,
   ArrowClockwise as ResetIcon,
   Bug as BugIcon,
   ListBullets as ListIcon,
@@ -919,108 +917,6 @@ export default function Observasi() {
                   <span>0% (Aman)</span>
                   <span>Waspada: {thresholdWaspada()}%</span>
                   <span>Ambang Ekonomi: {thresholdBahaya()}%</span>
-                </div>
-              </div>
-            </div>
-          </Card>
-
-          {/* 4. Rekomendasi PHT Berjenjang (Hierarki 4 Prioritas PHT) */}
-          <Card
-            variant="elevated"
-            class={`p-4 space-y-3 border transition-all ${
-              statusBahaya() === 'BAHAYA'
-                ? 'bg-orange-50/50 dark:bg-orange-950/30 border-orange-400/80 dark:border-orange-900/60'
-                : statusBahaya() === 'WASPADA'
-                ? 'bg-amber-50/50 dark:bg-amber-950/30 border-amber-300 dark:border-amber-900/60'
-                : 'bg-purple-50/50 dark:bg-purple-950/30 border-purple-200 dark:border-purple-900/60'
-            }`}
-          >
-            <div class="flex items-center justify-between pb-1">
-              <div class="flex items-center gap-2">
-                <Show
-                  when={statusBahaya() === 'BAHAYA'}
-                  fallback={<ShieldIcon size={18} weight="fill" class="text-violet-600 dark:text-purple-400" />}
-                >
-                  <WarningIcon size={18} weight="fill" class="text-orange-600 animate-bounce" />
-                </Show>
-                <h3 class="font-display font-black text-xs uppercase tracking-wider text-slate-800 dark:text-slate-100">
-                  Panduan Tindakan PHT Berjenjang
-                </h3>
-              </div>
-              <span class="text-[9px] font-display font-bold px-2 py-0.5 rounded-full bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
-                Ambang: {thresholdBahaya()}%
-              </span>
-            </div>
-
-            {/* 4 Matriks Prioritas PHT */}
-            <div class="space-y-2 text-xs">
-              {/* Prioritas 1: Mekanis */}
-              <div class="p-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 flex items-start gap-2.5">
-                <span class="font-display font-bold text-[10px] px-1.5 py-0.5 rounded bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 shrink-0">
-                  P1
-                </span>
-                <div>
-                  <div class="font-display font-bold text-slate-900 dark:text-slate-100 text-[11px]">
-                    Pengendalian Fisik & Mekanis
-                  </div>
-                  <div class="font-data text-[11px] text-slate-600 dark:text-slate-400 leading-snug">
-                    Pembersihan rumpun terserang, pemusnahan sarang/kelompok telur, pemasangan perangkap likat kuning.
-                  </div>
-                </div>
-              </div>
-
-              {/* Prioritas 2: Kultur Teknis */}
-              <div class="p-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 flex items-start gap-2.5">
-                <span class="font-display font-bold text-[10px] px-1.5 py-0.5 rounded bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 shrink-0">
-                  P2
-                </span>
-                <div>
-                  <div class="font-display font-bold text-slate-900 dark:text-slate-100 text-[11px]">
-                    Kultur Teknis & Sanitasi Lahan
-                  </div>
-                  <div class="font-data text-[11px] text-slate-600 dark:text-slate-400 leading-snug">
-                    Pengeringan petak berselang (intermittent), pemupukan N-P-K berimbang tanpa kelebihan nitrogen, sanitasi gulma inang.
-                  </div>
-                </div>
-              </div>
-
-              {/* Prioritas 3: Agens Hayati */}
-              <div class="p-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 flex items-start gap-2.5">
-                <span class="font-display font-bold text-[10px] px-1.5 py-0.5 rounded bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 shrink-0">
-                  P3
-                </span>
-                <div>
-                  <div class="font-display font-bold text-slate-900 dark:text-slate-100 text-[11px]">
-                    Agens Hayati & Biopestisida
-                  </div>
-                  <div class="font-data text-[11px] text-slate-600 dark:text-slate-400 leading-snug">
-                    Pelepasan predator laba-laba Lycosa, aplikasi jamur entomopatogen Beauveria bassiana, atau ekstrak mimba.
-                  </div>
-                </div>
-              </div>
-
-              {/* Prioritas 4: Kimiawi Darurat */}
-              <div
-                class={`p-2.5 rounded-xl border flex items-start gap-2.5 transition-all ${
-                  statusBahaya() === 'BAHAYA'
-                    ? 'bg-orange-100/60 dark:bg-orange-950/50 border-orange-400 text-orange-950 dark:text-orange-200 font-medium'
-                    : 'bg-white dark:bg-slate-900 border-slate-200/80 dark:border-slate-800 opacity-60'
-                }`}
-              >
-                <span class="font-display font-bold text-[10px] px-1.5 py-0.5 rounded bg-orange-200 dark:bg-orange-900 text-orange-800 dark:text-orange-200 shrink-0">
-                  P4
-                </span>
-                <div>
-                  <div class="font-display font-bold text-[11px]">
-                    Insektisida / Pestisida Kimia Selektif (Darurat)
-                  </div>
-                  <div class="font-data text-[11px] leading-snug">
-                    {statusBahaya() === 'BAHAYA'
-                      ? 'Ambang ekonomi terlampaui! Diizinkan intervensi kimia selektif berbahan aktif tepat dosis, tepat sasaran, dan tepat waktu.'
-                      : 'Hanya sebagai pilihan paling akhir jika intensitas telah melampaui Ambang Ekonomi (> ' +
-                        thresholdBahaya() +
-                        '%).'}
-                  </div>
                 </div>
               </div>
             </div>
