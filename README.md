@@ -45,17 +45,40 @@ Sistem cerdas pendukung penerapan **Pengendalian Hama Terpadu (PHT)** berbasis *
 
 ## 💻 Cara Menjalankan di Lokal
 
-### 1. Prasyarat
+### 🐳 Opsi 1: Menggunakan Podman Compose (Sangat Direkomendasikan)
+Cukup jalankan satu perintah untuk mengompilasi frontend dan menjalankan seluruh sistem:
+```bash
+# 1. Jalankan aplikasi via Podman Compose
+podman compose up -d --build
+
+# Atau jika menggunakan CLI podman-compose:
+podman-compose up -d --build
+
+# 2. Buka aplikasi di browser
+# http://localhost:8080
+
+# 3. Cek log kontainer
+podman compose logs -f
+
+# 4. Hentikan aplikasi
+podman compose down
+```
+
+---
+
+### 🛠️ Opsi 2: Menjalankan Secara Manual (Node.js & pnpm)
+
+#### 1. Prasyarat
 - Node.js (LTS v20+)
 - pnpm (`npm install -g pnpm`)
 
-### 2. Jalankan Backend API
+#### 2. Jalankan Backend API
 ```bash
 node scripts/mock-backend.js
 # Backend berjalan di http://127.0.0.1:8080
 ```
 
-### 3. Jalankan Frontend
+#### 3. Jalankan Frontend
 ```bash
 cd frontend
 pnpm install
@@ -63,7 +86,7 @@ pnpm dev --host 0.0.0.0 --port 3000
 # Buka http://localhost:3000 di browser
 ```
 
-### 4. Build Produksi
+#### 4. Build Produksi
 ```bash
 cd frontend
 pnpm build

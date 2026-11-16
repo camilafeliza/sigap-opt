@@ -305,18 +305,15 @@ EXPOSE 8080
 ENTRYPOINT ["/app/sigap-opt"]
 ```
 
-### 11.3. Perintah Podman CLI Standar
+### 11.3. Perintah Podman CLI & Podman Compose Standar
 ```bash
-# 1. Build Container Image menggunakan Podman CLI
+# 1. Jalankan langsung menggunakan Podman Compose (Rekomendasi Lokal)
+podman compose up -d --build
+
+# 2. Atau menggunakan perintah Podman CLI manual
 podman build -t sigap-opt:latest -f Containerfile .
-
-# 2. Buat Volume Persisten untuk Data LibSQL
 podman volume create sigap-opt-data
-
-# 3. Jalankan Container Single Binary
 podman run -d --name sigap-opt-instance -p 8080:8080 -v sigap-opt-data:/app/data:Z -e GEMINI_API_KEY="your-gemini-api-key-here" --restart unless-stopped localhost/sigap-opt:latest
-
-# 4. Cek Log Container
 podman logs -f sigap-opt-instance
 ```
 

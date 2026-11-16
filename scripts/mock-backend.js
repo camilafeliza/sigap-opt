@@ -1,6 +1,49 @@
 import http from 'http';
+import fs from 'fs';
+import path from 'path';
 
-const PORT = 8080;
+const PORT = process.env.PORT || 8080;
+const HOST = process.env.APP_HOST || '0.0.0.0';
+
+const MIME_TYPES = {
+  '.html': 'text/html; charset=utf-8',
+  '.js': 'text/javascript; charset=utf-8',
+  '.css': 'text/css; charset=utf-8',
+  '.json': 'application/json; charset=utf-8',
+  '.svg': 'image/svg+xml',
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.ico': 'image/x-icon',
+};
+
+function serveStatic(req, res, pathname) {
+  const candidates = [
+    path.resolve('frontend/dist'),
+    path.resolve('../frontend/dist'),
+    path.resolve('/app/frontend/dist'),
+  ];
+  const distDir = candidates.find(d => fs.existsSync(d));
+  if (!distDir) {
+    res.writeHead(404, { 'Content-Type': 'text/plain' });
+    res.end('Frontend dist not found. Please run pnpm build first.');
+    return;
+  }
+
+  let filePath = path.join(distDir, pathname === '/' ? 'index.html' : pathname);
+  if (!fs.existsSync(filePath) || fs.statSync(filePath).isDirectory()) {
+    filePath = path.join(distDir, 'index.html');
+  }
+
+  if (fs.existsSync(filePath)) {
+    const ext = path.extname(filePath);
+    const mime = MIME_TYPES[ext] || 'application/octet-stream';
+    res.writeHead(200, { 'Content-Type': mime });
+    fs.createReadStream(filePath).pipe(res);
+  } else {
+    res.writeHead(404, { 'Content-Type': 'text/plain' });
+    res.end('Not Found');
+  }
+}
 
 const ambangData = [
   {
@@ -286,13 +329,15 @@ const server = http.createServer((req, res) => {
       ambangData.unshift(newAmbang);
       res.writeHead(201, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify(newAmbang));
-    } else {
+    } else if (pathname.startsWith('/api/')) {
       res.writeHead(404, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: 'Endpoint not found' }));
+    } else {
+      serveStatic(req, res, pathname);
     }
   });
 });
 
-server.listen(PORT, '0.0.0.0', () => {
-  console.log(`[sigap-opt] Mock backend running on http://127.0.0.1:${PORT}`);
+server.listen(PORT, HOST, () => {
+  console.log(`[sigap-opt] Application server running on http://${HOST}:${PORT}`);
 });
