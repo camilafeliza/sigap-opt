@@ -25,7 +25,6 @@ import {
   WarningCircle as WarningIcon,
   ShieldCheck as ShieldIcon,
   ChartBar as ChartBarIcon,
-  DeviceMobileCamera as NativeCameraIcon,
 } from 'phosphor-solid';
 
 interface AiDetectionResult {
@@ -91,6 +90,7 @@ export default function Observasi() {
   const [fase, setFase] = createSignal<'Vegetatif' | 'Generatif'>('Vegetatif');
 
   // Form Step 2: Pemotretan & Analisis AI
+  let mobileCameraInputRef: HTMLInputElement | undefined;
   const [imagePreview, setImagePreview] = createSignal<string | null>(null);
   const [isCameraOpen, setIsCameraOpen] = createSignal(false);
   const [isAnalyzing, setIsAnalyzing] = createSignal(false);
@@ -301,6 +301,30 @@ export default function Observasi() {
         };
         reader.readAsDataURL(file);
       }
+    }
+  };
+
+  // Deteksi tipe perangkat secara cerdas: mobile (ponsel/tablet) vs desktop/laptop
+  const isMobileDevice = (): boolean => {
+    if (typeof navigator === 'undefined') return false;
+    const ua = navigator.userAgent || '';
+    const mobileRegex = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i;
+    if (mobileRegex.test(ua)) return true;
+    if (navigator.maxTouchPoints && navigator.maxTouchPoints > 2 && /Macintosh/.test(ua)) return true;
+    if (typeof window !== 'undefined') {
+      const isTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+      const isNarrow = window.innerWidth <= 768;
+      if (isTouch && isNarrow) return true;
+    }
+    return false;
+  };
+
+  // Handler Aksi Kamera: otomatis mengarahkan ke sensor native di mobile atau modal viewfinder di desktop
+  const handleCameraAction = () => {
+    if (isMobileDevice() || !navigator.mediaDevices?.getUserMedia) {
+      mobileCameraInputRef?.click();
+    } else {
+      setIsCameraOpen(true);
     }
   };
 
@@ -663,50 +687,28 @@ export default function Observasi() {
                 when={imagePreview()}
                 fallback={
                   <div class="space-y-2">
-                    <div class="grid grid-cols-2 gap-2">
-                      {/* Tombol Kamera Langsung Viewfinder */}
-                      <button
-                        type="button"
-                        onClick={() => setIsCameraOpen(true)}
-                        class="flex flex-col items-center justify-center p-4 border-2 border-dashed border-orange-300 dark:border-orange-800/80 rounded-2xl hover:border-orange-500 dark:hover:border-orange-500 bg-orange-50/40 dark:bg-orange-950/20 hover:bg-orange-50/80 transition-all group active:scale-[0.99] cursor-pointer"
-                      >
-                        <div class="w-12 h-12 rounded-2xl bg-orange-500 text-white flex items-center justify-center mb-2 shadow-md shadow-orange-500/30 group-hover:scale-105 transition-transform">
-                          <CameraIcon size={24} weight="bold" />
-                        </div>
-                        <span class="font-display font-black text-xs text-slate-800 dark:text-slate-100">
-                          Kamera Langsung
-                        </span>
-                        <span class="font-data text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">
-                          Viewfinder reticle layar
-                        </span>
-                      </button>
+                    {/* Tombol Kamera Tunggal dengan Deteksi Device Otomatis */}
+                    <button
+                      type="button"
+                      onClick={handleCameraAction}
+                      class="w-full flex flex-col items-center justify-center p-6 border-2 border-dashed border-orange-300 dark:border-orange-800/80 rounded-2xl hover:border-orange-500 dark:hover:border-orange-500 bg-orange-50/40 dark:bg-orange-950/20 hover:bg-orange-50/80 transition-all group active:scale-[0.99] cursor-pointer"
+                    >
+                      <div class="w-14 h-14 rounded-2xl bg-orange-500 text-white flex items-center justify-center mb-2.5 shadow-md shadow-orange-500/30 group-hover:scale-105 transition-transform">
+                        <CameraIcon size={28} weight="bold" />
+                      </div>
+                      <span class="font-display font-black text-sm text-slate-800 dark:text-slate-100">
+                        Ambil Foto OPT
+                      </span>
+                      <span class="font-data text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                        Potret langsung hama atau gejala daun di lapangan
+                      </span>
+                    </button>
 
-                      {/* Tombol Kamera Bawaan HP (Native Sensor Capture) */}
-                      <label class="flex flex-col items-center justify-center p-4 border-2 border-dashed border-violet-300 dark:border-purple-800/80 rounded-2xl hover:border-purple-500 dark:hover:border-purple-500 bg-purple-50/40 dark:bg-purple-950/20 hover:bg-purple-50/80 transition-all group active:scale-[0.99] cursor-pointer">
-                        <div class="w-12 h-12 rounded-2xl bg-violet-600 text-white flex items-center justify-center mb-2 shadow-md shadow-violet-600/30 group-hover:scale-105 transition-transform">
-                          <NativeCameraIcon size={24} weight="bold" />
-                        </div>
-                        <span class="font-display font-black text-xs text-slate-800 dark:text-slate-100">
-                          Kamera HP
-                        </span>
-                        <span class="font-data text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">
-                          Aplikasi kamera sistem
-                        </span>
-                        <input
-                          type="file"
-                          accept="image/*"
-                          capture="environment"
-                          onChange={handlePhotoSelect}
-                          class="hidden"
-                        />
-                      </label>
-                    </div>
-
-                    {/* Opsi Fallback: Unggah dari Galeri / Berkas */}
+                    {/* Opsi Unggah dari Galeri / Berkas Foto */}
                     <div class="flex items-center justify-center pt-0.5">
                       <label class="font-display font-bold text-xs text-slate-600 dark:text-slate-400 hover:text-violet-700 dark:hover:text-purple-300 flex items-center gap-1.5 cursor-pointer py-1.5 px-3 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
                         <UploadIcon size={15} weight="bold" />
-                        <span>Atau pilih dari galeri / berkas foto</span>
+                        <span>Pilih dari galeri / berkas foto</span>
                         <input
                           type="file"
                           accept="image/*"
@@ -715,6 +717,16 @@ export default function Observasi() {
                         />
                       </label>
                     </div>
+
+                    {/* Input tersembunyi khusus pemotretan native sensor perangkat bergerak */}
+                    <input
+                      ref={mobileCameraInputRef}
+                      type="file"
+                      accept="image/*"
+                      capture="environment"
+                      onChange={handlePhotoSelect}
+                      class="hidden"
+                    />
                   </div>
                 }
               >
@@ -727,27 +739,13 @@ export default function Observasi() {
                   <div class="absolute bottom-2 right-2 flex items-center gap-1.5">
                     <button
                       type="button"
-                      onClick={() => setIsCameraOpen(true)}
+                      onClick={handleCameraAction}
                       class="px-2.5 py-1.5 rounded-xl bg-orange-600/90 hover:bg-orange-600 backdrop-blur-md text-white font-display font-bold text-[10px] flex items-center gap-1 transition-colors shadow-sm cursor-pointer"
-                      title="Potret Ulang Kamera Langsung"
+                      title="Potret Ulang"
                     >
                       <CameraIcon size={12} weight="bold" />
-                      <span>Kamera</span>
+                      <span>Foto Ulang</span>
                     </button>
-                    <label
-                      class="px-2.5 py-1.5 rounded-xl bg-violet-600/90 hover:bg-violet-600 backdrop-blur-md text-white font-display font-bold text-[10px] flex items-center gap-1 cursor-pointer transition-colors shadow-sm"
-                      title="Potret dengan Kamera HP"
-                    >
-                      <NativeCameraIcon size={12} weight="bold" />
-                      <span>Kamera HP</span>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        capture="environment"
-                        onChange={handlePhotoSelect}
-                        class="hidden"
-                      />
-                    </label>
                     <label class="px-2.5 py-1.5 rounded-xl bg-slate-900/85 hover:bg-slate-900 backdrop-blur-md text-white font-display font-bold text-[10px] flex items-center gap-1 cursor-pointer transition-colors shadow-sm">
                       <UploadIcon size={12} weight="bold" />
                       <span>Galeri</span>

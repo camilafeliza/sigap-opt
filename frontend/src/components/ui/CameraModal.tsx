@@ -7,7 +7,6 @@ import {
   X as CloseIcon,
   UploadSimple as UploadIcon,
   Lightning as TorchIcon,
-  DeviceMobileCamera as NativeCameraIcon,
 } from 'phosphor-solid';
 
 interface CameraModalProps {
@@ -17,7 +16,6 @@ interface CameraModalProps {
 }
 
 export function CameraModal(props: CameraModalProps) {
-  let nativeCameraInputRef: HTMLInputElement | undefined;
   let galleryInputRef: HTMLInputElement | undefined;
   let activeMediaStream: MediaStream | null = null;
   let cameraSessionId = 0;
@@ -534,14 +532,6 @@ export function CameraModal(props: CameraModalProps) {
                   </button>
                   <button
                     type="button"
-                    onClick={() => nativeCameraInputRef?.click()}
-                    class="w-full py-2.5 px-4 rounded-xl bg-violet-600 hover:bg-violet-700 text-white font-display font-bold text-xs transition-colors flex items-center justify-center gap-1.5 shadow-lg shadow-violet-600/20 active:scale-95 cursor-pointer"
-                  >
-                    <NativeCameraIcon size={16} weight="bold" />
-                    <span>Gunakan Kamera Bawaan HP</span>
-                  </button>
-                  <button
-                    type="button"
                     onClick={() => galleryInputRef?.click()}
                     class="w-full py-2.5 px-4 rounded-xl bg-white/10 hover:bg-white/20 text-white font-display font-bold text-xs transition-colors flex items-center justify-center gap-1.5 border border-white/20 active:scale-95 cursor-pointer"
                   >
@@ -553,19 +543,22 @@ export function CameraModal(props: CameraModalProps) {
             </Show>
           </div>
 
-          {/* Bottom Bar: Tombol Shutter Utama & Opsi Kamera HP / Galeri */}
+          {/* Bottom Bar: Kontrol Shutter, Galeri, dan Batal */}
           <div class="relative z-10 flex items-center justify-around p-6 bg-gradient-to-t from-black/90 via-black/50 to-transparent">
-            {/* Opsi Kamera Bawaan HP */}
+            {/* Opsi Batal */}
             <button
               type="button"
-              onClick={() => nativeCameraInputRef?.click()}
+              onClick={() => {
+                stopStream();
+                props.onClose();
+              }}
               class="flex flex-col items-center gap-1 text-white/80 hover:text-white transition-colors cursor-pointer"
-              title="Gunakan Kamera Bawaan HP"
+              title="Batal"
             >
               <div class="w-11 h-11 rounded-2xl bg-white/10 backdrop-blur-md flex items-center justify-center border border-white/20 shadow-md active:scale-95">
-                <NativeCameraIcon size={20} weight="bold" />
+                <CloseIcon size={20} weight="bold" />
               </div>
-              <span class="font-display text-[10px] font-bold">Kamera HP</span>
+              <span class="font-display text-[10px] font-bold">Batal</span>
             </button>
 
             {/* Tombol Shutter Utama Pemotretan */}
@@ -597,15 +590,7 @@ export function CameraModal(props: CameraModalProps) {
             </button>
           </div>
 
-          {/* Hidden Inputs untuk Kamera Native dan Galeri */}
-          <input
-            ref={nativeCameraInputRef}
-            type="file"
-            accept="image/*"
-            capture="environment"
-            onChange={handleFileFallback}
-            class="hidden"
-          />
+          {/* Hidden Input untuk Galeri */}
           <input
             ref={galleryInputRef}
             type="file"
