@@ -64,15 +64,26 @@ pub async fn ai_identify_handler(
                 }],
                 "generationConfig": {
                     "temperature": 0.2,
-                    "maxOutputTokens": 800
+                    "maxOutputTokens": 2048
                 }
             });
 
             if let Ok(res) = state.http_client.post(&gemini_url).json(&req_body).send().await {
                 if res.status().is_success() {
                     if let Ok(json_val) = res.json::<serde_json::Value>().await {
-                        if let Some(raw_text) = json_val["candidates"][0]["content"]["parts"][0]["text"].as_str() {
-                            let sanitized = raw_text
+                        let combined_text: String = json_val["candidates"][0]["content"]["parts"]
+                            .as_array()
+                            .map(|parts| {
+                                parts
+                                    .iter()
+                                    .filter_map(|p| p["text"].as_str())
+                                    .collect::<Vec<_>>()
+                                    .join("")
+                            })
+                            .unwrap_or_default();
+
+                        if !combined_text.is_empty() {
+                            let sanitized = combined_text
                                 .trim()
                                 .trim_start_matches("```json")
                                 .trim_start_matches("```")

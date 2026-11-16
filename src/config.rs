@@ -25,7 +25,7 @@ impl Config {
             .ok()
             .filter(|k| !k.trim().is_empty() && k != "your-gemini-api-key-here");
         let gemini_model = env::var("GEMINI_MODEL")
-            .unwrap_or_else(|_| "gemini-2.5-flash".to_string());
+            .unwrap_or_else(|_| "gemini-3.5-flash-lite".to_string());
 
         Self {
             host,
