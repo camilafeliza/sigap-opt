@@ -3,7 +3,6 @@ import { useNavigate } from '@solidjs/router';
 import { useAuth } from '../services/auth';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
-import logoImg from '../assets/sigap-opt.png';
 import {
   User as UserIcon,
   LockKey as LockIcon,
@@ -48,18 +47,6 @@ export default function Login() {
     } finally {
       setLoading(false);
     }
-  };
-
-  // Quick preset for field testing (Minimalistic pills)
-  const setDemoRole = (role: 'petani' | 'admin') => {
-    if (role === 'petani') {
-      setUsername('petani');
-      setPassword('petani123');
-    } else {
-      setUsername('admin');
-      setPassword('admin123');
-    }
-    setErrorMessage(null);
   };
 
   return (
@@ -158,33 +145,7 @@ export default function Login() {
               </Button>
             </div>
           </form>
-
-          {/* Quick Field Access Presets (Super Clean Micro-Pills) */}
-          <div class="mt-6 pt-4 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
-            <span class="font-display text-[11px] font-bold text-slate-400 dark:text-slate-500">DEMO ROLE:</span>
-            <div class="flex items-center gap-1.5">
-              <button
-                type="button"
-                onClick={() => setDemoRole('petani')}
-                class="font-display px-2.5 py-1 text-[11px] font-bold rounded-lg bg-violet-50 dark:bg-purple-950/60 text-violet-700 dark:text-purple-300 hover:bg-violet-100 dark:hover:bg-purple-900/60 transition-colors"
-              >
-                Petani
-              </button>
-              <button
-                type="button"
-                onClick={() => setDemoRole('admin')}
-                class="font-display px-2.5 py-1 text-[11px] font-bold rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
-              >
-                Admin
-              </button>
-            </div>
-          </div>
         </Card>
-
-        {/* Minimal Footer Stamp */}
-        <p class="font-display text-center text-[11px] text-slate-400 dark:text-slate-500 font-medium mt-6">
-          v1.0 &middot; PHT Berbasis Ambang Ekonomi
-        </p>
       </div>
     </div>
   );
