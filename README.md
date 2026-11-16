@@ -72,4 +72,4 @@ pnpm build
 ---
 
 ## 📄 Lisensi
-Hak Cipta © 2026 Tim Pengembang sigap-opt.
+Proyek ini dilisensikan di bawah lisensi [MIT License](LICENSE) - Hak Cipta © 2026 Camila Feliza.
