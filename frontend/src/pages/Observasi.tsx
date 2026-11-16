@@ -22,6 +22,9 @@ import {
   CaretRight as CaretRightIcon,
   Check as CheckIcon,
   Scales as ScalesIcon,
+  WarningCircle as WarningIcon,
+  ShieldCheck as ShieldIcon,
+  ChartBar as ChartBarIcon,
 } from 'phosphor-solid';
 
 interface AiDetectionResult {
@@ -111,6 +114,21 @@ export default function Observasi() {
   // Riwayat & State
   const [isSaving, setIsSaving] = createSignal(false);
   const [successModalOpen, setSuccessModalOpen] = createSignal(false);
+  const [lastResult, setLastResult] = createSignal<{
+    petak: string;
+    komoditas: string;
+    varietas: string;
+    fase: string;
+    opt_nama: string;
+    nama_ilmiah?: string;
+    total_sampel: number;
+    total_terserang: number;
+    intensitas_persen: number;
+    status_bahaya: 'AMAN' | 'WASPADA' | 'BAHAYA';
+    threshold_waspada: number;
+    threshold_bahaya: number;
+    rekomendasi_pht: string;
+  } | null>(null);
   const [detailModalItem, setDetailModalItem] = createSignal<ObservasiHistoryItem | null>(null);
   const [ambangList, setAmbangList] = createSignal<any[]>([]);
   const [historyList, setHistoryList] = createSignal<ObservasiHistoryItem[]>([]);
@@ -379,19 +397,36 @@ export default function Observasi() {
     e.preventDefault();
     setIsSaving(true);
 
+    const calculatedResult = {
+      petak: petak(),
+      komoditas: komoditas(),
+      varietas: varietas(),
+      fase: fase(),
+      opt_nama: aiResult()?.nama_opt || 'Hama Lapangan',
+      nama_ilmiah: aiResult()?.nama_ilmiah,
+      total_sampel: effectiveTotalSampel(),
+      total_terserang: effectiveTotalTerserang(),
+      intensitas_persen: intensitasPersen(),
+      status_bahaya: statusBahaya(),
+      threshold_waspada: thresholdWaspada(),
+      threshold_bahaya: thresholdBahaya(),
+      rekomendasi_pht: rekomendasiPht(),
+    };
+    setLastResult(calculatedResult);
+
     try {
       const payload = {
         komoditas: `${komoditas()} ${varietas()}`,
         varietas: varietas(),
         petak: petak(),
         fase: fase(),
-        opt_nama: aiResult()?.nama_opt || 'Hama Lapangan',
-        nama_ilmiah: aiResult()?.nama_ilmiah,
-        total_sampel: effectiveTotalSampel(),
-        total_terserang: effectiveTotalTerserang(),
-        intensitas_persen: intensitasPersen(),
-        status_bahaya: statusBahaya(),
-        rekomendasi_pht: rekomendasiPht(),
+        opt_nama: calculatedResult.opt_nama,
+        nama_ilmiah: calculatedResult.nama_ilmiah,
+        total_sampel: calculatedResult.total_sampel,
+        total_terserang: calculatedResult.total_terserang,
+        intensitas_persen: calculatedResult.intensitas_persen,
+        status_bahaya: calculatedResult.status_bahaya,
+        rekomendasi_pht: calculatedResult.rekomendasi_pht,
       };
 
       const res = await fetch('/api/observasi', {
@@ -1128,7 +1163,7 @@ export default function Observasi() {
         </Show>
       </DialogModal>
 
-      {/* Modal Dialog Berhasil Disimpan */}
+      {/* Modal Output Hasil Observasi & Rekomendasi PHT */}
       <DialogModal
         open={successModalOpen()}
         onOpenChange={(open) => {
@@ -1138,46 +1173,235 @@ export default function Observasi() {
             setActiveTab('history');
           }
         }}
-        title="Observasi Tersimpan"
-        description="Data berhasil dicatat ke basis data LibSQL"
+        title="Hasil Evaluasi Ambang PHT"
+        description={`${lastResult()?.petak || petak()} &middot; ${lastResult()?.komoditas || komoditas()} (${lastResult()?.fase || fase()})`}
       >
-        <div class="space-y-4 text-center py-2">
-          <div class="w-14 h-14 rounded-2xl bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 mx-auto flex items-center justify-center shadow-sm">
-            <CheckCircleIcon size={32} weight="fill" />
-          </div>
-          <div>
-            <p class="font-display font-bold text-sm text-slate-800 dark:text-slate-100">
-              Pengamatan Lahan {petak()} Berhasil Direkam
-            </p>
-            <p class="font-data text-xs text-slate-500 dark:text-slate-400 mt-1">
-              Hasil intensitas {intensitasPersen()}% dengan status {statusBahaya()} telah disinkronkan ke rekapitulasi PHT.
-            </p>
-          </div>
-          <div class="flex gap-2">
-            <button
-              type="button"
-              onClick={() => {
-                setSuccessModalOpen(false);
-                handleResetForm();
-                setActiveTab('history');
-              }}
-              class="w-1/2 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-display font-bold text-xs hover:bg-slate-50 transition-colors"
-            >
-              Lihat Riwayat
-            </button>
-            <Button
-              variant="primary"
-              size="md"
-              class="w-1/2"
-              onClick={() => {
-                setSuccessModalOpen(false);
-                navigate('/dashboard');
-              }}
-            >
-              <span>Ke Beranda</span>
-            </Button>
-          </div>
-        </div>
+        <Show when={lastResult()}>
+          {(res) => (
+            <div class="space-y-3.5 text-xs">
+              {/* 1. Status Peringatan Visual & Angka Aktual Intensitas */}
+              <div
+                class={`p-3.5 rounded-2xl border flex items-center justify-between ${
+                  res().status_bahaya === 'BAHAYA'
+                    ? 'bg-orange-50 dark:bg-orange-950/40 border-orange-300 dark:border-orange-800 text-orange-950 dark:text-orange-200'
+                    : res().status_bahaya === 'WASPADA'
+                    ? 'bg-amber-50 dark:bg-amber-950/40 border-amber-300 dark:border-amber-800 text-amber-950 dark:text-amber-200'
+                    : 'bg-purple-50 dark:bg-purple-950/40 border-purple-200 dark:border-purple-800 text-purple-950 dark:text-purple-200'
+                }`}
+              >
+                <div class="flex items-center gap-2.5">
+                  <Show when={res().status_bahaya === 'BAHAYA'}>
+                    <div class="w-10 h-10 rounded-xl bg-orange-500 text-white flex items-center justify-center shrink-0 shadow-sm animate-pulse">
+                      <WarningIcon size={22} weight="fill" />
+                    </div>
+                  </Show>
+                  <Show when={res().status_bahaya === 'WASPADA'}>
+                    <div class="w-10 h-10 rounded-xl bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-sm">
+                      <WarningIcon size={22} weight="bold" />
+                    </div>
+                  </Show>
+                  <Show when={res().status_bahaya === 'AMAN'}>
+                    <div class="w-10 h-10 rounded-xl bg-violet-600 text-white flex items-center justify-center shrink-0 shadow-sm">
+                      <ShieldIcon size={22} weight="fill" />
+                    </div>
+                  </Show>
+                  <div>
+                    <span class="font-display font-black text-sm uppercase tracking-wide block">
+                      Status: {res().status_bahaya}
+                    </span>
+                    <span class="font-data text-[10px] opacity-80">
+                      {res().status_bahaya === 'AMAN'
+                        ? 'Tingkat kerusakan di bawah ambang batas'
+                        : res().status_bahaya === 'WASPADA'
+                        ? 'Populasi mendekati ambang ekonomi'
+                        : 'Populasi telah merugikan secara ekonomi'}
+                    </span>
+                  </div>
+                </div>
+
+                <div class="text-right">
+                  <span class="font-display text-[9px] font-bold text-slate-400 block uppercase">
+                    Intensitas Aktual
+                  </span>
+                  <span class="font-display font-black text-2xl">
+                    {res().intensitas_persen}%
+                  </span>
+                </div>
+              </div>
+
+              {/* 2. Komparasi Otomatis dengan Parameter Ambang Ekonomi */}
+              <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 space-y-2">
+                <div class="flex items-center justify-between text-xs pb-1 border-b border-slate-200/60 dark:border-slate-700/60">
+                  <div>
+                    <span class="font-display text-[10px] font-bold text-slate-400 block uppercase">
+                      Hama / OPT Terdeteksi
+                    </span>
+                    <span class="font-display font-bold text-slate-900 dark:text-slate-100">
+                      {res().opt_nama}
+                    </span>
+                    <Show when={res().nama_ilmiah}>
+                      <span class="font-data text-[10px] text-slate-400 italic block">
+                        {res().nama_ilmiah}
+                      </span>
+                    </Show>
+                  </div>
+                  <div class="text-right">
+                    <span class="font-display text-[10px] font-bold text-slate-400 block uppercase">
+                      Sampel Lapangan
+                    </span>
+                    <span class="font-display font-bold text-slate-800 dark:text-slate-200">
+                      {res().total_terserang} / {res().total_sampel} Tanaman
+                    </span>
+                  </div>
+                </div>
+
+                {/* Progress Bar 3-Zona Ambang Ekonomi */}
+                <div class="space-y-1 pt-1">
+                  <div class="w-full h-2.5 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden flex">
+                    <div
+                      class="bg-violet-500 h-full"
+                      style={{ width: `${res().threshold_waspada}%` }}
+                      title="Zona Aman"
+                    />
+                    <div
+                      class="bg-amber-400 h-full"
+                      style={{
+                        width: `${Math.max(
+                          0,
+                          res().threshold_bahaya - res().threshold_waspada
+                        )}%`,
+                      }}
+                      title="Zona Waspada"
+                    />
+                    <div class="bg-orange-600 h-full flex-1" title="Zona Bahaya" />
+                  </div>
+                  <div class="flex justify-between text-[9px] font-data text-slate-400">
+                    <span>0% (Aman)</span>
+                    <span>Waspada: {res().threshold_waspada}%</span>
+                    <span>Ambang Ekonomi: {res().threshold_bahaya}%</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* 3. Rekomendasi Tindakan PHT Spesifik */}
+              <div
+                class={`p-3.5 rounded-xl border space-y-2 ${
+                  res().status_bahaya === 'BAHAYA'
+                    ? 'bg-orange-50/60 dark:bg-orange-950/30 border-orange-200 dark:border-orange-900/60'
+                    : res().status_bahaya === 'WASPADA'
+                    ? 'bg-amber-50/60 dark:bg-amber-950/30 border-amber-200 dark:border-amber-900/60'
+                    : 'bg-purple-50/60 dark:bg-purple-950/30 border-purple-200 dark:border-purple-900/60'
+                }`}
+              >
+                <div class="flex items-center gap-1.5 pb-1 border-b border-slate-200/40 dark:border-slate-700/40">
+                  <span class="font-display font-black text-xs uppercase tracking-wider text-slate-900 dark:text-slate-100">
+                    Rekomendasi Tindakan PHT Spesifik
+                  </span>
+                </div>
+
+                {/* KONDISI 1: AMAN */}
+                <Show when={res().status_bahaya === 'AMAN'}>
+                  <div class="space-y-1.5">
+                    <p class="font-data text-xs text-purple-950 dark:text-purple-200 leading-relaxed">
+                      Tingkat kerusakan berada di bawah ambang batas toleransi ekonomi. Sistem menyarankan:
+                    </p>
+                    <ul class="space-y-1 text-[11px] font-data text-purple-900 dark:text-purple-300">
+                      <li class="flex items-start gap-1.5">
+                        <span class="text-violet-600 font-bold">&bull;</span>
+                        <span><strong>Pemantauan Rutin</strong>: Lanjutkan pengamatan berkala mingguan untuk memantau dinamika populasi.</span>
+                      </li>
+                      <li class="flex items-start gap-1.5">
+                        <span class="text-violet-600 font-bold">&bull;</span>
+                        <span><strong>Pelestarian Musuh Alami</strong>: Lestarikan predator alami seperti laba-laba Lycosa, kumbang kubah, dan parasitoid Trichogramma tanpa aplikasi bahan kimia sintetis.</span>
+                      </li>
+                    </ul>
+                  </div>
+                </Show>
+
+                {/* KONDISI 2: WASPADA */}
+                <Show when={res().status_bahaya === 'WASPADA'}>
+                  <div class="space-y-1.5">
+                    <p class="font-data text-xs text-amber-950 dark:text-amber-200 leading-relaxed">
+                      Kepadatan populasi mendekati ambang ekonomi yang merugikan. Terapkan tindakan preventif:
+                    </p>
+                    <ul class="space-y-1 text-[11px] font-data text-amber-900 dark:text-amber-300">
+                      <li class="flex items-start gap-1.5">
+                        <span class="text-amber-600 font-bold">&bull;</span>
+                        <span><strong>Sanitasi & Tata Air</strong>: Pengeringan petak sawah berselang (intermittent) dan sanitasi gulma inang.</span>
+                      </li>
+                      <li class="flex items-start gap-1.5">
+                        <span class="text-amber-600 font-bold">&bull;</span>
+                        <span><strong>Perangkap & Agens Hayati</strong>: Pemasangan perangkap likat kuning / feromon dan aplikasi cendawan entomopatogen (Beauveria bassiana) atau biopestisida nabati.</span>
+                      </li>
+                    </ul>
+                  </div>
+                </Show>
+
+                {/* KONDISI 3: BAHAYA */}
+                <Show when={res().status_bahaya === 'BAHAYA'}>
+                  <div class="space-y-1.5">
+                    <p class="font-data text-xs text-orange-950 dark:text-orange-200 font-bold">
+                      Populasi telah merugikan secara ekonomi! Panduan penanganan berjenjang darurat:
+                    </p>
+                    <div class="space-y-1 text-[11px] font-data text-orange-950 dark:text-orange-200">
+                      <div class="p-1.5 rounded-lg bg-white/70 dark:bg-slate-900/60 border border-orange-200 dark:border-orange-900/60 flex items-start gap-1.5">
+                        <span class="font-display font-black text-[10px] px-1 py-0.2 rounded bg-blue-100 text-blue-700 shrink-0">1. Mekanis</span>
+                        <span>Sanitasi fisik, pembersihan rumpun terserang, dan pemusnahan kelompok telur/sarang hama.</span>
+                      </div>
+                      <div class="p-1.5 rounded-lg bg-white/70 dark:bg-slate-900/60 border border-orange-200 dark:border-orange-900/60 flex items-start gap-1.5">
+                        <span class="font-display font-black text-[10px] px-1 py-0.2 rounded bg-emerald-100 text-emerald-700 shrink-0">2. Kultur</span>
+                        <span>Pengeringan petakan sawah total dan penghentian pemupukan nitrogen berlebih.</span>
+                      </div>
+                      <div class="p-1.5 rounded-lg bg-white/70 dark:bg-slate-900/60 border border-orange-200 dark:border-orange-900/60 flex items-start gap-1.5">
+                        <span class="font-display font-black text-[10px] px-1 py-0.2 rounded bg-purple-100 text-purple-700 shrink-0">3. Hayati</span>
+                        <span>Pelepasan musuh alami masif dan penyemprotan biopestisida nabati konsentrasi efektif.</span>
+                      </div>
+                      <div class="p-1.5 rounded-lg bg-orange-100 dark:bg-orange-900/40 border border-orange-300 dark:border-orange-800 flex items-start gap-1.5">
+                        <span class="font-display font-black text-[10px] px-1 py-0.2 rounded bg-orange-500 text-white shrink-0">4. Kimia</span>
+                        <span><strong>Langkah Darurat Terakhir</strong>: Insektisida/pestisida kimia selektif berbahan aktif tepat dosis, tepat sasaran, dan tepat waktu.</span>
+                      </div>
+                    </div>
+                  </div>
+                </Show>
+              </div>
+
+              {/* 4. Konfirmasi Sinkronisasi Otomatis ke Basis Data & Dasbor */}
+              <div class="p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900/60 flex items-center gap-2">
+                <CheckCircleIcon size={20} weight="fill" class="text-emerald-600 shrink-0" />
+                <span class="font-data text-[11px] text-emerald-900 dark:text-emerald-200 leading-snug">
+                  Data pengamatan hari ini telah otomatis disimpan ke basis data LibSQL dan divisualisasikan pada halaman Dasbor.
+                </span>
+              </div>
+
+              {/* 5. Tombol Aksi Cepat */}
+              <div class="flex gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSuccessModalOpen(false);
+                    handleResetForm();
+                  }}
+                  class="w-1/2 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-display font-bold text-xs hover:bg-slate-50 transition-colors flex items-center justify-center gap-1.5"
+                >
+                  <ResetIcon size={14} weight="bold" />
+                  <span>Observasi Baru</span>
+                </button>
+                <Button
+                  variant="primary"
+                  size="md"
+                  class="w-1/2 flex items-center justify-center gap-1.5"
+                  onClick={() => {
+                    setSuccessModalOpen(false);
+                    navigate('/dashboard');
+                  }}
+                >
+                  <ChartBarIcon size={16} weight="bold" />
+                  <span>Lihat di Dasbor</span>
+                </Button>
+              </div>
+            </div>
+          )}
+        </Show>
       </DialogModal>
 
       {/* Modal Viewfinder Kamera Lapangan */}

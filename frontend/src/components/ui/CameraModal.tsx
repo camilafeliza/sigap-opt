@@ -6,7 +6,7 @@ import {
   ArrowsClockwise as FlipIcon,
   X as CloseIcon,
   UploadSimple as UploadIcon,
-  WarningCircle as WarningIcon,
+  Lightning as TorchIcon,
 } from 'phosphor-solid';
 
 interface CameraModalProps {
@@ -18,14 +18,29 @@ interface CameraModalProps {
 export function CameraModal(props: CameraModalProps) {
   let videoRef: HTMLVideoElement | undefined;
   let fileInputRef: HTMLInputElement | undefined;
+  let activeStream: MediaStream | null = null;
+  let cameraSessionId = 0;
+
+  // Deteksi perangkat bergerak (mobile phone vs desktop/laptop)
+  const isMobile = () => {
+    if (typeof navigator === 'undefined') return false;
+    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+      navigator.userAgent
+    );
+  };
 
   const [stream, setStream] = createSignal<MediaStream | null>(null);
   const [errorMsg, setErrorMsg] = createSignal<string | null>(null);
-  const [facingMode, setFacingMode] = createSignal<'environment' | 'user'>('environment');
+  const [facingMode, setFacingMode] = createSignal<'environment' | 'user'>(
+    isMobile() ? 'environment' : 'user'
+  );
   const [hasMultipleCameras, setHasMultipleCameras] = createSignal(false);
+  const [isVideoReady, setIsVideoReady] = createSignal(false);
   const [isShutterFlashing, setIsShutterFlashing] = createSignal(false);
+  const [hasTorch, setHasTorch] = createSignal(false);
+  const [isTorchOn, setIsTorchOn] = createSignal(false);
 
-  // Periksa apakah perangkat memiliki lebih dari 1 kamera (kamera depan & belakang)
+  // Periksa apakah perangkat memiliki lebih dari 1 kamera
   const checkCameras = async () => {
     try {
       if (navigator.mediaDevices && navigator.mediaDevices.enumerateDevices) {
@@ -33,13 +48,25 @@ export function CameraModal(props: CameraModalProps) {
         const videoDevices = devices.filter((d) => d.kind === 'videoinput');
         setHasMultipleCameras(videoDevices.length > 1);
       }
-    } catch (_) {
-      // Abaikan jika browser tidak mengizinkan enumerasi sebelum izin diberikan
-    }
+    } catch (_) {}
   };
 
-  // Menghentikan seluruh trek kamera aktif
+  // Menghentikan seluruh trek kamera aktif secara absolut
   const stopStream = () => {
+    // 1. Batalkan sesi pemanggilan getUserMedia yang sedang berjalan di background
+    cameraSessionId++;
+
+    // 2. Matikan hardware kamera pada activeStream
+    if (activeStream) {
+      activeStream.getTracks().forEach((track) => {
+        try {
+          track.stop();
+        } catch (_) {}
+      });
+      activeStream = null;
+    }
+
+    // 3. Matikan hardware kamera pada signal stream jika ada
     const currentStream = stream();
     if (currentStream) {
       currentStream.getTracks().forEach((track) => {
@@ -49,49 +76,153 @@ export function CameraModal(props: CameraModalProps) {
       });
       setStream(null);
     }
+
+    // 4. Putuskan sumber media dari elemen video
     if (videoRef) {
+      try {
+        videoRef.pause();
+      } catch (_) {}
       videoRef.srcObject = null;
     }
+
+    setIsVideoReady(false);
+    setIsTorchOn(false);
+    setHasTorch(false);
   };
 
-  // Memulai streaming kamera
-  const startCamera = async (facing: 'environment' | 'user' = facingMode()) => {
+  // Sambungkan stream ke elemen video saat keduanya tersedia
+  const attachStreamToVideo = () => {
+    const currentStream = activeStream || stream();
+    if (!videoRef || !currentStream) return;
+
+    if (videoRef.srcObject !== currentStream) {
+      videoRef.srcObject = currentStream;
+    }
+
+    videoRef.onloadedmetadata = () => {
+      videoRef?.play().catch(() => {});
+    };
+
+    videoRef.onloadeddata = () => {
+      setIsVideoReady(true);
+    };
+
+    videoRef.onplaying = () => {
+      setIsVideoReady(true);
+    };
+
+    videoRef.play().then(() => {
+      setIsVideoReady(true);
+    }).catch(() => {});
+  };
+
+  // Memulai streaming kamera dengan session lock & fallback adaptif
+  const startCamera = async (targetFacing: 'environment' | 'user' = facingMode()) => {
     stopStream();
     setErrorMsg(null);
+    setIsVideoReady(false);
 
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      setErrorMsg('Perangkat atau browser ini tidak mendukung akses kamera langsung.');
+      setErrorMsg('Browser atau lingkungan ini tidak mendukung akses kamera langsung (MediaDevices API).');
       return;
     }
 
+    // Ambil session ID saat ini untuk mendeteksi pembatalan asynchronous
+    const sessionId = ++cameraSessionId;
+
     try {
-      const constraints: MediaStreamConstraints = {
-        video: {
-          facingMode: { ideal: facing },
+      const isMobileDevice = isMobile();
+      let videoConstraint: MediaTrackConstraints;
+
+      if (isMobileDevice) {
+        videoConstraint = {
+          facingMode: { ideal: targetFacing },
           width: { ideal: 1280 },
           height: { ideal: 720 },
-        },
-        audio: false,
-      };
+        };
+      } else {
+        // Pada desktop/laptop, gunakan facingMode non-ideal atau default agar tidak memilih node metadata
+        videoConstraint = {
+          facingMode: targetFacing,
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+        };
+      }
 
-      const mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
+      let mediaStream: MediaStream;
+      try {
+        mediaStream = await navigator.mediaDevices.getUserMedia({
+          video: videoConstraint,
+          audio: false,
+        });
+      } catch (errConstraint) {
+        // Fallback: Jika constraint spesifik gagal, minta video dasar perangkat
+        console.warn('Constraint ideal gagal, mencoba fallback standar:', errConstraint);
+        mediaStream = await navigator.mediaDevices.getUserMedia({
+          video: true,
+          audio: false,
+        });
+      }
+
+      // Periksa apakah modal ditutup pengguna saat getUserMedia sedang menunggu izin/inisialisasi
+      if (sessionId !== cameraSessionId || !props.open) {
+        mediaStream.getTracks().forEach((track) => {
+          try {
+            track.stop();
+          } catch (_) {}
+        });
+        return;
+      }
+
+      // Pastikan seluruh video track aktif
+      mediaStream.getVideoTracks().forEach((track) => {
+        track.enabled = true;
+      });
+
+      // Simpan stream aktif ke variabel mutable dan signal
+      activeStream = mediaStream;
       setStream(mediaStream);
 
-      if (videoRef) {
-        videoRef.srcObject = mediaStream;
-        await videoRef.play().catch(() => {});
+      // Cek dukungan senter / torch (khusus kamera belakang)
+      const videoTrack = mediaStream.getVideoTracks()[0];
+      if (videoTrack && typeof (videoTrack as any).getCapabilities === 'function') {
+        const capabilities = (videoTrack as any).getCapabilities();
+        setHasTorch(Boolean(capabilities && capabilities.torch));
       }
 
+      // Sambungkan ke elemen video
+      attachStreamToVideo();
+
+      // Periksa jumlah kamera yang tersedia
       checkCameras();
     } catch (err: any) {
+      if (sessionId !== cameraSessionId) return;
+
       console.warn('Akses kamera gagal:', err);
       if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
-        setErrorMsg('Izin akses kamera ditolak. Silakan izinkan akses kamera di pengaturan browser.');
+        setErrorMsg('Izin akses kamera ditolak. Silakan izinkan akses kamera pada ikon gembok/pengaturan situs di browser Anda.');
       } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
-        setErrorMsg('Kamera tidak ditemukan pada perangkat Anda.');
+        setErrorMsg('Sensor kamera tidak ditemukan pada perangkat Anda.');
+      } else if (err.name === 'NotReadableError' || err.name === 'TrackStartError') {
+        setErrorMsg('Kamera sedang digunakan oleh aplikasi lain (Zoom, Meet, dll) atau sistem operasi.');
       } else {
-        setErrorMsg('Gagal mengaktifkan kamera. Anda dapat memilih foto dari berkas/galeri.');
+        setErrorMsg('Gagal mengaktifkan kamera. Silakan periksa izin perangkat atau pilih foto dari galeri.');
       }
+    }
+  };
+
+  // Toggle senter / torch
+  const toggleTorch = async () => {
+    if (!activeStream || !hasTorch()) return;
+    const track = activeStream.getVideoTracks()[0];
+    if (track) {
+      const nextTorch = !isTorchOn();
+      try {
+        await (track as any).applyConstraints({
+          advanced: [{ torch: nextTorch }],
+        });
+        setIsTorchOn(nextTorch);
+      } catch (_) {}
     }
   };
 
@@ -104,7 +235,7 @@ export function CameraModal(props: CameraModalProps) {
 
   // Tangkap gambar dari video feed
   const capturePhoto = () => {
-    if (!videoRef || !stream()) return;
+    if (!videoRef || !activeStream) return;
 
     // Efek flash shutter
     setIsShutterFlashing(true);
@@ -164,17 +295,28 @@ export function CameraModal(props: CameraModalProps) {
     }
   };
 
+  // Matikan kamera saat pengguna beralih tab atau minimize window browser
+  const handleVisibilityChange = () => {
+    if (document.hidden && props.open) {
+      stopStream();
+      props.onClose();
+    }
+  };
+
   // Reaktif terhadap perubahan prop open
   createEffect(() => {
     if (props.open) {
+      document.addEventListener('visibilitychange', handleVisibilityChange);
       startCamera();
     } else {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
       stopStream();
     }
   });
 
   // Bersihkan trek media saat komponen di-unmount
   onCleanup(() => {
+    document.removeEventListener('visibilitychange', handleVisibilityChange);
     stopStream();
   });
 
@@ -192,6 +334,22 @@ export function CameraModal(props: CameraModalProps) {
             </div>
 
             <div class="flex items-center gap-2">
+              {/* Tombol Senter / Torch jika didukung */}
+              <Show when={hasTorch()}>
+                <button
+                  type="button"
+                  onClick={toggleTorch}
+                  class={`w-10 h-10 rounded-full backdrop-blur-md flex items-center justify-center transition-colors border shadow-lg active:scale-95 ${
+                    isTorchOn()
+                      ? 'bg-amber-400 text-slate-950 border-amber-300'
+                      : 'bg-slate-900/80 text-white border-white/10 hover:bg-slate-800'
+                  }`}
+                  title={isTorchOn() ? 'Matikan Senter' : 'Nyalakan Senter'}
+                >
+                  <TorchIcon size={18} weight={isTorchOn() ? 'fill' : 'bold'} />
+                </button>
+              </Show>
+
               {/* Tombol Balik Kamera (Depan / Belakang) */}
               <Show when={hasMultipleCameras()}>
                 <button
@@ -222,7 +380,10 @@ export function CameraModal(props: CameraModalProps) {
           {/* Viewfinder Video Kamera */}
           <div class="relative flex-1 flex items-center justify-center overflow-hidden bg-black">
             <video
-              ref={videoRef}
+              ref={(el) => {
+                videoRef = el;
+                attachStreamToVideo();
+              }}
               autoplay
               playsinline
               muted
@@ -231,15 +392,25 @@ export function CameraModal(props: CameraModalProps) {
               }`}
             />
 
+            {/* Indikator Loading Sensor Kamera */}
+            <Show when={!isVideoReady() && !errorMsg()}>
+              <div class="absolute inset-0 flex flex-col items-center justify-center bg-black/80 z-10 pointer-events-none">
+                <div class="w-10 h-10 border-3 border-orange-500 border-t-transparent rounded-full animate-spin mb-3" />
+                <span class="font-display font-bold text-xs text-slate-300">
+                  Mengaktifkan sensor kamera...
+                </span>
+              </div>
+            </Show>
+
             {/* Flash Overlay saat memotret */}
             <Show when={isShutterFlashing()}>
               <div class="absolute inset-0 bg-white z-20 pointer-events-none animate-out fade-out duration-150" />
             </Show>
 
             {/* Target Reticle / Bingkai Panduan Pemotretan Organ Tanaman */}
-            <Show when={!errorMsg()}>
+            <Show when={!errorMsg() && isVideoReady()}>
               <div class="absolute inset-0 pointer-events-none flex items-center justify-center p-6">
-                <div class="relative w-64 h-64 sm:w-72 sm:h-72 border-2 border-white/30 rounded-3xl shadow-[0_0_0_9999px_rgba(0,0,0,0.4)]">
+                <div class="relative w-64 h-64 sm:w-72 sm:h-72 border-2 border-white/40 rounded-3xl">
                   {/* Sudut Penanda Target Oranye */}
                   <div class="absolute -top-1 -left-1 w-5 h-5 border-t-3 border-l-3 border-orange-500 rounded-tl-xl" />
                   <div class="absolute -top-1 -right-1 w-5 h-5 border-t-3 border-r-3 border-orange-500 rounded-tr-xl" />
@@ -248,11 +419,11 @@ export function CameraModal(props: CameraModalProps) {
 
                   {/* Titik Fokus Tengah */}
                   <div class="absolute inset-0 flex items-center justify-center">
-                    <div class="w-3 h-3 rounded-full border border-orange-400/60 bg-orange-500/20" />
+                    <div class="w-2.5 h-2.5 rounded-full border border-orange-400 bg-orange-500/30" />
                   </div>
 
                   <div class="absolute -bottom-8 left-0 right-0 text-center">
-                    <span class="font-display font-medium text-[11px] text-white/90 bg-black/60 backdrop-blur-sm px-3 py-1 rounded-full border border-white/10">
+                    <span class="font-display font-bold text-[11px] text-white/95 bg-black/70 backdrop-blur-sm px-3.5 py-1 rounded-full border border-white/10 shadow-sm">
                       Arahkan kamera ke hama / gejala daun
                     </span>
                   </div>
@@ -310,7 +481,7 @@ export function CameraModal(props: CameraModalProps) {
               <button
                 type="button"
                 onClick={capturePhoto}
-                disabled={!stream() || !!errorMsg()}
+                disabled={!activeStream || !isVideoReady() || !!errorMsg()}
                 class="w-20 h-20 rounded-full border-4 border-white/80 p-1 flex items-center justify-center transition-transform active:scale-90 disabled:opacity-40 disabled:cursor-not-allowed group focus:outline-none"
                 title="Ambil Foto Sekarang"
               >
