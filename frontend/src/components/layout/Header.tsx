@@ -64,7 +64,6 @@ export function Header() {
         open={settingsOpen()}
         onOpenChange={setSettingsOpen}
         title="Pengaturan"
-        description="Preferensi tampilan & profil lapangan"
       >
         <div class="space-y-4">
           {/* 1. Pemilihan Mode Terang / Gelap */}

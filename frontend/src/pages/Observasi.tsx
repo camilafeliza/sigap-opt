@@ -409,15 +409,10 @@ export default function Observasi() {
 
   return (
     <div class="p-4 space-y-4">
-      {/* Zero-Description Clean Header */}
+      {/* Top Bar: Icon & Tab Switcher */}
       <div class="flex items-center justify-between">
-        <div class="flex items-center gap-2">
-          <div class="w-8 h-8 rounded-xl bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 flex items-center justify-center">
-            <CameraIcon size={20} weight="bold" />
-          </div>
-          <h1 class="font-display font-black text-lg text-slate-900 dark:text-slate-100">
-            Observasi Lapangan
-          </h1>
+        <div class="w-8 h-8 rounded-xl bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 flex items-center justify-center">
+          <CameraIcon size={20} weight="bold" />
         </div>
 
         {/* Tab Switcher: Formulir vs Riwayat */}
