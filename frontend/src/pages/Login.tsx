@@ -70,7 +70,7 @@ export default function Login() {
         <div class="flex flex-col items-center mb-6">
           <div class="w-full max-w-[270px] p-3 rounded-2xl bg-white dark:bg-white shadow-sm border border-slate-200/80 dark:border-slate-300 flex items-center justify-center">
             <img
-              src={logoImg || '/sigap-opt.png'}
+              src="/sigapopt.png"
               alt="SIGAP OPT"
               class="w-full h-auto max-h-16 object-contain"
             />
