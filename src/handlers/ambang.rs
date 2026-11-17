@@ -73,9 +73,9 @@ pub async fn create_ambang_handler(
     let waspada = payload.nilai_waspada_persen.unwrap_or(5.0);
     let ambang = payload.nilai_ambang_ekonomi_persen.unwrap_or(10.0);
     let satuan = payload.satuan.unwrap_or_else(|| "%".to_string());
-    let rek_aman = payload.rekomendasi_aman.unwrap_or_else(|| "Pemantauan berkala dan pelestarian agens hayati.".to_string());
-    let rek_waspada = payload.rekomendasi_waspada.unwrap_or_else(|| "Pengendalian mekanis dan aplikasi biopestisida.".to_string());
-    let rek_bahaya = payload.rekomendasi_bahaya.unwrap_or_else(|| "Intervensi kimia selektif sesuai prinsip bijaksana PHT.".to_string());
+    let rek_aman = payload.rekomendasi_aman.unwrap_or_default();
+    let rek_waspada = payload.rekomendasi_waspada.unwrap_or_default();
+    let rek_bahaya = payload.rekomendasi_bahaya.unwrap_or_default();
 
     // Cari atau buat komoditas_id
     let mut kom_rows = conn

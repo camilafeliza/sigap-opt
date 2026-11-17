@@ -57,15 +57,6 @@ interface ObservasiHistoryItem {
   created_at: string;
 }
 
-// Preset Varietas per Komoditas untuk mempermudah operasional lapangan
-const VARIETAS_PRESETS: Record<string, string[]> = {
-  Padi: ['Ciherang', 'Inpari 32', 'Situ Bagendit', 'Mekongga', 'IR 64'],
-  Jagung: ['Bisi 18', 'NK 212', 'Pioneer P27', 'Hibrida C-1'],
-  Cabai: ['Lado F1', 'TM 99', 'Kastilo', 'Pilar F1'],
-  'Bawang Merah': ['Bima Brebes', 'Bauji', 'Tajuk', 'Maja Cipanas'],
-  Kedelai: ['Anjasmoro', 'Grobogan', 'Dega 1'],
-};
-
 // Katalog OPT Baku untuk opsi manual override
 const OPT_KATALOG_LIST = [
   { nama: 'Wereng Batang Coklat', ilmiah: 'Nilaparvata lugens', kategori: 'Hama', organ: 'Batang & Daun' },
@@ -92,7 +83,7 @@ export default function Observasi() {
     'Padi', 'Jagung', 'Cabai', 'Bawang Merah', 'Kedelai'
   ]);
   const [komoditas, setKomoditas] = createSignal('Padi');
-  const [varietas, setVarietas] = createSignal('Ciherang');
+  const [varietas, setVarietas] = createSignal('');
   const [petak, setPetak] = createSignal('');
   const [fase, setFase] = createSignal<'Vegetatif' | 'Generatif'>('Vegetatif');
 
@@ -300,13 +291,7 @@ export default function Observasi() {
       if (s === 'WASPADA') return amb.rekomendasi_waspada;
       return amb.rekomendasi_aman;
     }
-    if (s === 'BAHAYA') {
-      return 'Prioritas 1: Pengendalian fisik mekanis intensif. Prioritas 2: Pengaturan tata air & sanitasi lahan. Prioritas 3: Pelepasan musuh alami masif. Darurat: Konsultasikan dengan Petugas POPT / PPL setempat untuk pemilihan bahan aktif kimiawi terdaftar yang tepat.';
-    }
-    if (s === 'WASPADA') {
-      return 'Prioritas 1: Pemasangan perangkap likat kuning / feromon. Prioritas 2: Pengeringan berkala petakan sawah. Prioritas 3: Aplikasi biopestisida nabati / agens hayati Beauveria bassiana.';
-    }
-    return 'Prioritas 1: Pemantauan populasi berkala mingguan. Prioritas 2: Pelestarian musuh alami predator laba-laba & kumbang. Prioritas 3: Pemupukan berimbang.';
+    return 'Belum ada parameter ambang ekonomi yang dikonfigurasi untuk komoditas dan OPT ini.';
   });
 
   // Handler Unggah & Pemotretan Citra
@@ -389,14 +374,12 @@ export default function Observasi() {
     setKomoditas(matchedKomoditas);
     setIsKomoditasAutoFilled(true);
 
-    // Varietas otomatis dari AI atau varietas unggul preset komoditas
-    let targetVarietas = rawVarietas?.trim();
-    if (!targetVarietas || targetVarietas.toLowerCase().includes('tidak') || targetVarietas.toLowerCase().includes('unknown')) {
-      const presets = VARIETAS_PRESETS[matchedKomoditas];
-      targetVarietas = presets && presets.length > 0 ? presets[0] : 'Ciherang';
+    // Varietas otomatis dari AI jika terdeteksi
+    const targetVarietas = rawVarietas?.trim();
+    if (targetVarietas && !targetVarietas.toLowerCase().includes('tidak') && !targetVarietas.toLowerCase().includes('unknown')) {
+      setVarietas(targetVarietas);
+      setIsVarietasAutoFilled(true);
     }
-    setVarietas(targetVarietas);
-    setIsVarietasAutoFilled(true);
   };
 
   // Eksekusi Analisis AI Multimodal via Proxy Axum Rust
@@ -598,11 +581,6 @@ export default function Observasi() {
                   onChange={(val) => {
                     setKomoditas(val);
                     setIsKomoditasAutoFilled(false);
-                    const presets = VARIETAS_PRESETS[val];
-                    if (presets && presets.length > 0) {
-                      setVarietas(presets[0]);
-                      setIsVarietasAutoFilled(false);
-                    }
                   }}
                 />
               </div>
@@ -679,30 +657,6 @@ export default function Observasi() {
               </div>
             </div>
 
-            {/* Quick Chips Varietas Populer */}
-            <Show when={VARIETAS_PRESETS[komoditas()]}>
-              <div class="pt-1 flex items-center gap-1.5 flex-wrap">
-                <span class="text-[9px] font-bold text-slate-400 uppercase">Saran:</span>
-                <For each={VARIETAS_PRESETS[komoditas()]}>
-                  {(v) => (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setVarietas(v);
-                        setIsVarietasAutoFilled(false);
-                      }}
-                      class={`text-[10px] font-display font-bold px-2 py-0.5 rounded-lg border transition-all ${
-                        varietas() === v
-                          ? 'border-violet-500 bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300'
-                          : 'border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:bg-slate-50'
-                      }`}
-                    >
-                      {v}
-                    </button>
-                  )}
-                </For>
-              </div>
-            </Show>
           </Card>
 
           {/* 2. Pemotretan & Analisis AI Vision */}
@@ -976,26 +930,6 @@ export default function Observasi() {
                       required
                     />
                   </div>
-                </div>
-
-                {/* Tombol Cepat Pilihan Total Sampel Standar */}
-                <div class="flex items-center gap-1.5">
-                  <span class="text-[9px] font-bold text-slate-400 uppercase">Preset N:</span>
-                  <For each={[20, 50, 100]}>
-                    {(val) => (
-                      <button
-                        type="button"
-                        onClick={() => setTotalSampel(val)}
-                        class={`text-[10px] font-display font-bold px-2 py-0.5 rounded-lg border transition-all ${
-                          totalSampel() === val
-                            ? 'border-violet-500 bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300'
-                            : 'border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:bg-slate-50'
-                        }`}
-                      >
-                        {val} Rumpun
-                      </button>
-                    )}
-                  </For>
                 </div>
               </div>
             </Show>
@@ -1414,7 +1348,7 @@ export default function Observasi() {
                 </div>
               </div>
 
-              {/* 3. Rekomendasi Tindakan PHT Spesifik */}
+              {/* 3. Rekomendasi Tindakan PHT */}
               <div
                 class={`p-3.5 rounded-xl border space-y-2 ${
                   res().status_bahaya === 'BAHAYA'
@@ -1426,74 +1360,12 @@ export default function Observasi() {
               >
                 <div class="flex items-center gap-1.5 pb-1 border-b border-slate-200/40 dark:border-slate-700/40">
                   <span class="font-display font-black text-xs uppercase tracking-wider text-slate-900 dark:text-slate-100">
-                    Rekomendasi Tindakan PHT Spesifik
+                    Rekomendasi Tindakan PHT
                   </span>
                 </div>
-
-                {/* KONDISI 1: AMAN */}
-                <Show when={res().status_bahaya === 'AMAN'}>
-                  <div class="space-y-1.5">
-                    <p class="font-data text-xs text-purple-950 dark:text-purple-200 leading-relaxed">
-                      Tingkat kerusakan berada di bawah ambang batas toleransi ekonomi. Sistem menyarankan:
-                    </p>
-                    <ul class="space-y-1 text-[11px] font-data text-purple-900 dark:text-purple-300">
-                      <li class="flex items-start gap-1.5">
-                        <span class="text-violet-600 font-bold">•</span>
-                        <span><strong>Pemantauan Rutin</strong>: Lanjutkan pengamatan berkala mingguan untuk memantau dinamika populasi.</span>
-                      </li>
-                      <li class="flex items-start gap-1.5">
-                        <span class="text-violet-600 font-bold">•</span>
-                        <span><strong>Pelestarian Musuh Alami</strong>: Lestarikan predator alami seperti laba-laba Lycosa, kumbang kubah, dan parasitoid Trichogramma tanpa aplikasi bahan kimia sintetis.</span>
-                      </li>
-                    </ul>
-                  </div>
-                </Show>
-
-                {/* KONDISI 2: WASPADA */}
-                <Show when={res().status_bahaya === 'WASPADA'}>
-                  <div class="space-y-1.5">
-                    <p class="font-data text-xs text-amber-950 dark:text-amber-200 leading-relaxed">
-                      Kepadatan populasi mendekati ambang ekonomi yang merugikan. Terapkan tindakan preventif:
-                    </p>
-                    <ul class="space-y-1 text-[11px] font-data text-amber-900 dark:text-amber-300">
-                      <li class="flex items-start gap-1.5">
-                        <span class="text-amber-600 font-bold">•</span>
-                        <span><strong>Sanitasi & Tata Air</strong>: Pengeringan petak sawah berselang (intermittent) dan sanitasi gulma inang.</span>
-                      </li>
-                      <li class="flex items-start gap-1.5">
-                        <span class="text-amber-600 font-bold">•</span>
-                        <span><strong>Perangkap & Agens Hayati</strong>: Pemasangan perangkap likat kuning / feromon dan aplikasi cendawan entomopatogen (Beauveria bassiana) atau biopestisida nabati.</span>
-                      </li>
-                    </ul>
-                  </div>
-                </Show>
-
-                {/* KONDISI 3: BAHAYA */}
-                <Show when={res().status_bahaya === 'BAHAYA'}>
-                  <div class="space-y-1.5">
-                    <p class="font-data text-xs text-orange-950 dark:text-orange-200 font-bold">
-                      Populasi telah merugikan secara ekonomi! Panduan penanganan berjenjang darurat:
-                    </p>
-                    <div class="space-y-1 text-[11px] font-data text-orange-950 dark:text-orange-200">
-                      <div class="p-1.5 rounded-lg bg-white/70 dark:bg-slate-900/60 border border-orange-200 dark:border-orange-900/60 flex items-start gap-1.5">
-                        <span class="font-display font-black text-[10px] px-1 py-0.2 rounded bg-blue-100 text-blue-700 shrink-0">1. Mekanis</span>
-                        <span>Sanitasi fisik, pembersihan rumpun terserang, dan pemusnahan kelompok telur/sarang hama.</span>
-                      </div>
-                      <div class="p-1.5 rounded-lg bg-white/70 dark:bg-slate-900/60 border border-orange-200 dark:border-orange-900/60 flex items-start gap-1.5">
-                        <span class="font-display font-black text-[10px] px-1 py-0.2 rounded bg-emerald-100 text-emerald-700 shrink-0">2. Kultur</span>
-                        <span>Pengeringan petakan sawah total dan penghentian pemupukan nitrogen berlebih.</span>
-                      </div>
-                      <div class="p-1.5 rounded-lg bg-white/70 dark:bg-slate-900/60 border border-orange-200 dark:border-orange-900/60 flex items-start gap-1.5">
-                        <span class="font-display font-black text-[10px] px-1 py-0.2 rounded bg-purple-100 text-purple-700 shrink-0">3. Hayati</span>
-                        <span>Pelepasan musuh alami masif dan penyemprotan biopestisida nabati konsentrasi efektif.</span>
-                      </div>
-                      <div class="p-1.5 rounded-lg bg-orange-100 dark:bg-orange-900/40 border border-orange-300 dark:border-orange-800 flex items-start gap-1.5">
-                        <span class="font-display font-black text-[10px] px-1 py-0.2 rounded bg-orange-500 text-white shrink-0">4. Kimia</span>
-                        <span><strong>Langkah Darurat Terakhir</strong>: Insektisida/pestisida kimia selektif berbahan aktif tepat dosis, tepat sasaran, dan tepat waktu.</span>
-                      </div>
-                    </div>
-                  </div>
-                </Show>
+                <p class="font-data text-xs text-slate-800 dark:text-slate-200 leading-relaxed font-medium">
+                  {res().rekomendasi_pht}
+                </p>
               </div>
 
               {/* 4. Konfirmasi Sinkronisasi Otomatis ke Basis Data & Dasbor */}

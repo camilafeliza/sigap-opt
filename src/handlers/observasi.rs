@@ -147,9 +147,9 @@ pub async fn create_observasi_handler(
     let (waspada, ambang, rek_aman, rek_waspada, rek_bahaya) = ambang_res.unwrap_or((
         5.0,
         10.0,
-        "Prioritas 1: Pemantauan rutin mingguan, sanitasi lahan, dan pelestarian agens hayati musuh alami.".to_string(),
-        "Prioritas 2: Pengendalian fisik-mekanis, sanitasi gulma inang, dan aplikasi biopestisida ramah lingkungan.".to_string(),
-        "Intervensi darurat: Terapkan pembersihan fisik intensif dan konsultasikan dengan Petugas POPT / PPL setempat untuk rekomendasi bahan aktif darurat terdaftar.".to_string(),
+        "Belum ada parameter ambang ekonomi yang dikonfigurasi untuk komoditas dan OPT ini.".to_string(),
+        "Belum ada parameter ambang ekonomi yang dikonfigurasi untuk komoditas dan OPT ini.".to_string(),
+        "Belum ada parameter ambang ekonomi yang dikonfigurasi untuk komoditas dan OPT ini.".to_string(),
     ));
 
     let (status, rekomendasi) = if intensitas >= ambang {

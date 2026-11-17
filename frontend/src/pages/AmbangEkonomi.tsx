@@ -32,15 +32,6 @@ interface AmbangItem {
   rekomendasi_bahaya: string;
 }
 
-// Preset saran OPT agronomi per Komoditas untuk mempermudah Administrator
-const OPT_PRESETS_BY_KOMODITAS: Record<string, string[]> = {
-  Padi: ['Wereng Batang Coklat', 'Penggerek Batang Padi', 'Blas Daun', 'Hawar Daun Bakteri', 'Walang Sangit'],
-  Jagung: ['Ulat Grayak Jagung (FAW)', 'Penggerek Batang Jagung', 'Bulai Jagung', 'Bercak Daun'],
-  Cabai: ['Kutu Daun (Aphids)', 'Lalat Buah', 'Antraknosa', 'Thrips'],
-  'Bawang Merah': ['Ulat Grayak (Spodoptera)', 'Bercak Ungu (Alternaria)', 'Layu Fusarium'],
-  Kedelai: ['Ulat Grayak', 'Kepik Hijau', 'Karat Daun', 'Ulat Penggulung Daun'],
-};
-
 const SATUAN_OPTIONS = ['%', 'ekor/rumpun', 'ekor/perangkap', 'larva/tanaman'];
 const FASE_OPTIONS: ('Vegetatif' | 'Generatif' | 'Semua Fase')[] = ['Vegetatif', 'Generatif', 'Semua Fase'];
 
@@ -71,15 +62,9 @@ export default function AmbangEkonomi() {
   const [nilaiAmbang, setNilaiAmbang] = createSignal(10.0);
 
   // Form State: Rekomendasi PHT Berjenjang
-  const [rekomendasiAman, setRekomendasiAman] = createSignal(
-    'Pemantauan rutin mingguan dan pelestarian agens hayati musuh alami.'
-  );
-  const [rekomendasiWaspada, setRekomendasiWaspada] = createSignal(
-    'Pengendalian fisik/mekanis, sanitasi inang, dan aplikasi biopestisida.'
-  );
-  const [rekomendasiBahaya, setRekomendasiBahaya] = createSignal(
-    'Intervensi darurat: Insektisida/fungisida kimia selektif sesuai prinsip tepat dosis.'
-  );
+  const [rekomendasiAman, setRekomendasiAman] = createSignal('');
+  const [rekomendasiWaspada, setRekomendasiWaspada] = createSignal('');
+  const [rekomendasiBahaya, setRekomendasiBahaya] = createSignal('');
   const [isSubmitting, setIsSubmitting] = createSignal(false);
 
   const fetchAmbang = async () => {
@@ -99,15 +84,6 @@ export default function AmbangEkonomi() {
   onMount(() => {
     fetchAmbang();
   });
-
-  // Sinkronisasi otomatis saran rekomendasi saat komoditas atau OPT berubah
-  const handleSelectOptPreset = (opt: string) => {
-    setOptNama(opt);
-    const k = komoditas();
-    setRekomendasiAman(`Pemantauan berkala populasi musuh alami pada pertanaman ${k}.`);
-    setRekomendasiWaspada(`Pengendalian mekanis, pemasangan perangkap likat/feromon, dan biopestisida pada ${k}.`);
-    setRekomendasiBahaya(`Intervensi kimia darurat selektif terdaftar pengendali ${opt} dengan prinsip tepat dosis.`);
-  };
 
   const filteredAmbang = () => {
     const k = filterKomoditas();
@@ -146,6 +122,9 @@ export default function AmbangEkonomi() {
         await fetchAmbang();
         setCreateModalOpen(false);
         setOptNama('');
+        setRekomendasiAman('');
+        setRekomendasiWaspada('');
+        setRekomendasiBahaya('');
         toast.success('Parameter ambang ekonomi berhasil disimpan');
       } else {
         toast.error('Gagal menambahkan parameter ambang');
@@ -204,6 +183,9 @@ export default function AmbangEkonomi() {
           size="sm"
           onClick={() => {
             setOptNama('');
+            setRekomendasiAman('');
+            setRekomendasiWaspada('');
+            setRekomendasiBahaya('');
             setCreateModalOpen(true);
           }}
           class="shadow-brand-orange"
@@ -410,10 +392,6 @@ export default function AmbangEkonomi() {
               value={komoditas()}
               onChange={(val) => {
                 setKomoditas(val);
-                const presets = OPT_PRESETS_BY_KOMODITAS[val];
-                if (presets && presets.length > 0) {
-                  handleSelectOptPreset(presets[0]);
-                }
               }}
             />
 
@@ -430,28 +408,6 @@ export default function AmbangEkonomi() {
                 class="font-data w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-800 dark:text-slate-100 focus:outline-none focus:border-violet-600 shadow-xs"
                 required
               />
-
-              {/* Quick Chips Preset OPT */}
-              <Show when={OPT_PRESETS_BY_KOMODITAS[komoditas()]}>
-                <div class="pt-1.5 flex items-center gap-1 flex-wrap">
-                  <span class="text-[9px] font-bold text-slate-400 uppercase">Saran:</span>
-                  <For each={OPT_PRESETS_BY_KOMODITAS[komoditas()]}>
-                    {(p) => (
-                      <button
-                        type="button"
-                        onClick={() => handleSelectOptPreset(p)}
-                        class={`text-[9px] font-display font-bold px-2 py-0.5 rounded-lg border transition-all ${
-                          optNama() === p
-                            ? 'border-violet-500 bg-purple-100 dark:bg-purple-900/60 text-purple-700 dark:text-purple-300'
-                            : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-500 dark:text-slate-400'
-                        }`}
-                      >
-                        {p}
-                      </button>
-                    )}
-                  </For>
-                </div>
-              </Show>
             </div>
 
             {/* Fase Pertumbuhan Tanaman */}
@@ -557,6 +513,7 @@ export default function AmbangEkonomi() {
                 type="text"
                 value={rekomendasiAman()}
                 onInput={(e) => setRekomendasiAman(e.currentTarget.value)}
+                placeholder="Tindakan pencegahan zona aman"
                 class="font-data w-full px-3 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-800 dark:text-slate-200 focus:outline-none focus:border-violet-600"
                 required
               />
@@ -570,6 +527,7 @@ export default function AmbangEkonomi() {
                 type="text"
                 value={rekomendasiWaspada()}
                 onInput={(e) => setRekomendasiWaspada(e.currentTarget.value)}
+                placeholder="Tindakan pencegahan zona waspada"
                 class="font-data w-full px-3 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-800 dark:text-slate-200 focus:outline-none focus:border-amber-500"
                 required
               />
@@ -583,6 +541,7 @@ export default function AmbangEkonomi() {
                 type="text"
                 value={rekomendasiBahaya()}
                 onInput={(e) => setRekomendasiBahaya(e.currentTarget.value)}
+                placeholder="Tindakan pengendalian darurat zona bahaya"
                 class="font-data w-full px-3 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-800 dark:text-slate-200 focus:outline-none focus:border-orange-600"
                 required
               />
