@@ -1,8 +1,8 @@
-import { Show, createSignal, For } from 'solid-js';
+import { Show, createSignal } from 'solid-js';
 import { useLocation, useNavigate } from '@solidjs/router';
 import { useAuth } from '../../services/auth';
 import { useTheme } from '../../services/theme';
-import { useAvatar, CARTOON_3D_STYLES } from '../../services/avatar';
+import { useAvatar } from '../../services/avatar';
 import { toast } from '../../services/toast';
 import { DialogModal } from '../ui/Dialog';
 import { Avatar } from '../ui/Avatar';
@@ -20,7 +20,7 @@ export function Header() {
   const navigate = useNavigate();
   const auth = useAuth();
   const { isDark, setTheme } = useTheme();
-  const { style, randomize, setStyle } = useAvatar();
+  const { randomize } = useAvatar();
   const [settingsOpen, setSettingsOpen] = createSignal(false);
 
   const isLoginPage = () => location.pathname === '/login';
@@ -118,54 +118,28 @@ export function Header() {
             </div>
           </div>
 
-          {/* 2. Avatar Karakter 3D & Tombol Acak */}
-          <div class="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 space-y-3">
-            <div class="flex items-center justify-between">
-              <div class="flex items-center gap-3">
-                <Avatar size="lg" />
-                <div>
-                  <p class="font-display font-bold text-xs text-slate-900 dark:text-slate-100">
-                    {displayName()}
-                  </p>
-                  <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-display font-bold uppercase bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300">
-                    <ShieldCheckIcon size={10} weight="bold" />
-                    {auth.role()}
-                  </span>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={randomize}
-                class="font-display text-xs font-bold px-3 py-1.5 rounded-xl bg-violet-600 hover:bg-violet-700 active:scale-95 text-white flex items-center gap-1.5 shadow-sm transition-all"
-              >
-                <ShuffleIcon size={14} weight="bold" />
-                <span>Acak</span>
-              </button>
-            </div>
-
-            {/* Pilihan Gaya Avatar 3D */}
-            <div>
-              <span class="font-display font-bold text-[10px] text-slate-500 dark:text-slate-400 block mb-1.5">
-                PILIHAN KARAKTER 3D
-              </span>
-              <div class="grid grid-cols-3 gap-1.5">
-                <For each={CARTOON_3D_STYLES}>
-                  {(item) => (
-                    <button
-                      type="button"
-                      onClick={() => setStyle(item.id)}
-                      class={`px-2 py-1.5 rounded-lg text-[10px] font-display font-bold border text-center transition-all ${
-                        style() === item.id
-                          ? 'border-violet-600 bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300'
-                          : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400'
-                      }`}
-                    >
-                      {item.name}
-                    </button>
-                  )}
-                </For>
+          {/* 2. Profil Pengguna & Avatar */}
+          <div class="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <Avatar size="lg" />
+              <div>
+                <p class="font-display font-bold text-xs text-slate-900 dark:text-slate-100">
+                  {displayName()}
+                </p>
+                <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-display font-bold uppercase bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300">
+                  <ShieldCheckIcon size={10} weight="bold" />
+                  {auth.role()}
+                </span>
               </div>
             </div>
+            <button
+              type="button"
+              onClick={randomize}
+              class="font-display text-xs font-bold px-3 py-1.5 rounded-xl bg-violet-600 hover:bg-violet-700 active:scale-95 text-white flex items-center gap-1.5 shadow-sm transition-all"
+            >
+              <ShuffleIcon size={14} weight="bold" />
+              <span>Acak</span>
+            </button>
           </div>
 
           {/* 3. Tombol Selesai & Tutup */}
