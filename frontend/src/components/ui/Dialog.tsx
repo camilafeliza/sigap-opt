@@ -16,6 +16,7 @@ export function DialogModal(props: CustomDialogProps) {
     <ArkDialog.Root
       open={props.open}
       onOpenChange={(details) => props.onOpenChange(details.open)}
+      trapFocus={false}
     >
       <Portal>
         {/* Backdrop 100% Layar Penuh (Di-teleport ke document.body via Portal) */}
