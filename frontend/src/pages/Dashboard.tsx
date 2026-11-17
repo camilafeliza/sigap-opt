@@ -6,6 +6,8 @@ import { Button } from '../components/ui/Button';
 import { DialogModal } from '../components/ui/Dialog';
 import { IntensityTrendChart, TrendPoint } from '../components/charts/IntensityTrendChart';
 import { OptDistributionChart, OptStat } from '../components/charts/OptDistributionChart';
+import { GeospatialOutbreakMap } from '../components/dashboard/GeospatialOutbreakMap';
+import { PrintReportModal } from '../components/dashboard/PrintReportModal';
 import {
   WarningCircle,
   ShieldCheck,
@@ -21,6 +23,16 @@ import {
   FileArrowDown,
   Info,
   CheckCircle,
+  Users,
+  Globe,
+  SlidersHorizontal,
+  Printer,
+  Sparkle,
+  Cpu,
+  WarningOctagon,
+  Compass,
+  Crosshair,
+  MapPin,
 } from 'phosphor-solid';
 
 export interface ObservasiItem {
@@ -41,6 +53,16 @@ export interface ObservasiItem {
   created_at: string;
 }
 
+export interface AdminMacroStats {
+  totalUsers: number;
+  totalPetak: number;
+  totalObservasi: number;
+  avgAiConfidence: number;
+  totalAiDetections: number;
+  unconfiguredOptCount: number;
+  unconfiguredOptList: string[];
+}
+
 export default function Dashboard() {
   const auth = useAuth();
   const navigate = useNavigate();
@@ -49,8 +71,10 @@ export default function Dashboard() {
   const [observasiList, setObservasiList] = createSignal<ObservasiItem[]>([]);
   const [trendData, setTrendData] = createSignal<TrendPoint[]>([]);
   const [optRanking, setOptRanking] = createSignal<OptStat[]>([]);
+  const [adminMacro, setAdminMacro] = createSignal<AdminMacroStats | null>(null);
   const [filterStatus, setFilterStatus] = createSignal<'SEMUA' | 'BAHAYA' | 'WASPADA' | 'AMAN'>('SEMUA');
   const [selectedObs, setSelectedObs] = createSignal<ObservasiItem | null>(null);
+  const [printModalOpen, setPrintModalOpen] = createSignal(false);
 
   onMount(async () => {
     try {
@@ -76,6 +100,10 @@ export default function Dashboard() {
           percentage: total > 0 ? Math.round((r.count / total) * 1000) / 10 : 0,
         }));
         setOptRanking(mapped);
+
+        if (stats.adminMacro) {
+          setAdminMacro(stats.adminMacro);
+        }
       }
     } catch {
       setTrendData([]);
@@ -143,7 +171,7 @@ export default function Dashboard() {
     return { text: 'Stabil', type: 'neutral' };
   });
 
-  // Ekspor CSV khusus Super Admin
+  // Ekspor CSV
   const exportCsv = () => {
     const headers = 'ID,Petak,Komoditas,Fase,OPT,Sampel,Terserang,Intensitas(%),Status,Tanggal\n';
     const rows = observasiList()
@@ -162,494 +190,988 @@ export default function Dashboard() {
 
   return (
     <div class="p-4 space-y-4">
-      {/* =========================================================================
-          1. SISTEM PERINGATAN DINI: NOTIFIKASI PRIORITAS DI BAGIAN PALING ATAS
-          Menyorot petak spesifik yang tingkat serangannya melewati ambang ekonomi
-      ========================================================================= */}
       <Show
-        when={bahayaList().length > 0}
+        when={auth.isSuperAdmin()}
         fallback={
-          <div class="p-3.5 rounded-2xl bg-gradient-to-r from-purple-50 to-violet-50 dark:from-purple-950/40 dark:to-slate-900 border border-violet-200 dark:border-purple-900/60 shadow-xs flex items-center justify-between">
-            <div class="flex items-center gap-3">
-              <div class="w-9 h-9 rounded-xl bg-violet-100 dark:bg-purple-900/50 flex items-center justify-center shrink-0 text-violet-700 dark:text-purple-300">
-                <ShieldCheck size={22} weight="fill" />
+          /* =========================================================================
+             TAMPILAN KHUSUS PETANI: PUSAT INFORMASI OPERASIONAL LAPANGAN
+             ========================================================================= */
+          <div class="space-y-4">
+            {/* 1. Sistem Peringatan Dini: Notifikasi Prioritas Paling Atas */}
+            <Show
+              when={bahayaList().length > 0}
+              fallback={
+                <div class="p-3.5 rounded-2xl bg-gradient-to-r from-purple-50 to-violet-50 dark:from-purple-950/40 dark:to-slate-900 border border-violet-200 dark:border-purple-900/60 shadow-xs flex items-center justify-between">
+                  <div class="flex items-center gap-3">
+                    <div class="w-9 h-9 rounded-xl bg-violet-100 dark:bg-purple-900/50 flex items-center justify-center shrink-0 text-violet-700 dark:text-purple-300">
+                      <ShieldCheck size={22} weight="fill" />
+                    </div>
+                    <div>
+                      <span class="font-display text-xs font-black text-slate-800 dark:text-slate-100 tracking-wide block uppercase">
+                        Status Lahan Terkendali
+                      </span>
+                      <span class="font-data text-[11px] text-slate-500 dark:text-slate-400 block">
+                        Seluruh petak berada di bawah ambang ekonomi (10%).
+                      </span>
+                    </div>
+                  </div>
+                  <span class="font-display text-[10px] font-black px-2 py-1 rounded-lg bg-white dark:bg-slate-800 text-violet-700 dark:text-purple-300 border border-violet-200 dark:border-purple-800 shadow-xs uppercase">
+                    Aman
+                  </span>
+                </div>
+              }
+            >
+              <div class="p-4 rounded-2xl bg-orange-50 dark:bg-orange-950/40 border-2 border-orange-500 shadow-lg shadow-orange-500/10 space-y-3">
+                <div class="flex items-center justify-between">
+                  <div class="flex items-center gap-2.5">
+                    <div class="w-8 h-8 rounded-lg bg-orange-500 flex items-center justify-center text-white shrink-0 shadow-xs animate-pulse">
+                      <WarningCircle size={22} weight="fill" />
+                    </div>
+                    <div>
+                      <span class="font-display text-xs font-black text-orange-950 dark:text-orange-200 tracking-wider block">
+                        PERINGATAN DINI PHT
+                      </span>
+                      <span class="font-data text-[11px] text-orange-700 dark:text-orange-300 block font-medium">
+                        {bahayaList().length} petak lahan melewati batas toleransi ambang ekonomi
+                      </span>
+                    </div>
+                  </div>
+                  <span class="font-display text-[9px] font-black px-2 py-0.5 rounded-full bg-orange-600 text-white uppercase tracking-wider">
+                    BAHAYA
+                  </span>
+                </div>
+
+                <div class="space-y-2 pt-1">
+                  <For each={bahayaList()}>
+                    {(item) => (
+                      <div class="p-3 rounded-xl bg-white dark:bg-slate-900 border border-orange-300 dark:border-orange-800 flex items-center justify-between gap-2 shadow-xs">
+                        <div class="space-y-0.5 min-w-0">
+                          <div class="flex items-center gap-1.5 flex-wrap">
+                            <span class="font-display text-xs font-black text-slate-900 dark:text-slate-100">
+                              {item.petak || 'Petak Lapangan'}
+                            </span>
+                            <span class="font-data text-[10px] text-slate-400">
+                              · {item.komoditas} ({item.fase})
+                            </span>
+                          </div>
+                          <div class="font-display text-[11px] font-bold text-orange-600 dark:text-orange-400 truncate">
+                            {item.opt_nama}
+                          </div>
+                        </div>
+
+                        <div class="flex items-center gap-2 shrink-0">
+                          <div class="text-right">
+                            <div class="font-display text-sm font-black text-orange-600 leading-tight">
+                              {item.intensitas_persen}%
+                            </div>
+                            <span class="font-data text-[9px] text-slate-400 block">
+                              Ambang 10%
+                            </span>
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={() => setSelectedObs(item)}
+                            class="px-2.5 py-1.5 rounded-lg bg-orange-500 hover:bg-orange-600 active:scale-95 text-white font-display text-[11px] font-bold transition-all shadow-xs flex items-center gap-1"
+                          >
+                            <span>Tindakan</span>
+                            <CaretRight size={12} weight="bold" />
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </For>
+                </div>
               </div>
-              <div>
-                <span class="font-display text-xs font-black text-slate-800 dark:text-slate-100 tracking-wide block uppercase">
-                  Status Lahan Terkendali
+            </Show>
+
+            {/* 2. Metrik Ringkasan Harian Petani */}
+            <div class="grid grid-cols-2 gap-3">
+              <div
+                class={`p-3.5 rounded-2xl flex flex-col justify-between text-white shadow-md transition-all ${
+                  bahayaList().length > 0
+                    ? 'bg-gradient-to-br from-orange-500 to-orange-700 shadow-orange-500/10'
+                    : waspadaList().length > 0
+                    ? 'bg-gradient-to-br from-amber-500 to-amber-700 shadow-amber-500/10'
+                    : 'bg-gradient-to-br from-violet-600 to-purple-800 shadow-purple-900/10'
+                }`}
+              >
+                <div>
+                  <div class="flex items-center justify-between opacity-90 mb-1.5">
+                    <span class="font-display text-[10px] font-black tracking-wider uppercase text-purple-100">
+                      STATUS KESEHATAN
+                    </span>
+                    <div class="w-6 h-6 rounded-lg bg-white/20 flex items-center justify-center">
+                      <Show
+                        when={bahayaList().length > 0}
+                        fallback={<ShieldCheck size={14} weight="fill" />}
+                      >
+                        <ShieldWarning size={14} weight="fill" />
+                      </Show>
+                    </div>
+                  </div>
+                  <div class="font-display text-xl font-black tracking-tight leading-none">
+                    {bahayaList().length > 0 ? 'BAHAYA' : waspadaList().length > 0 ? 'WASPADA' : 'AMAN'}
+                  </div>
+                </div>
+
+                <div class="mt-3 pt-2 border-t border-white/20 flex items-center justify-between text-[10px] font-bold">
+                  <span class="uppercase">
+                    {bahayaList().length > 0 ? `${bahayaList().length} Kritis` : 'Terkendali'}
+                  </span>
+                  <span class="opacity-90">{observasiList().length} Petak</span>
+                </div>
+              </div>
+
+              <Card variant="elevated" class="p-3.5 flex flex-col justify-between bg-white dark:bg-slate-900">
+                <div>
+                  <div class="flex items-center justify-between text-slate-500 dark:text-slate-400 mb-1.5">
+                    <span class="font-display text-[10px] font-black tracking-wider uppercase">
+                      RATA KERUSAKAN
+                    </span>
+                    <div class="w-6 h-6 rounded-lg bg-orange-50 dark:bg-orange-950/40 text-orange-600 flex items-center justify-center">
+                      <TrendUp size={14} weight="bold" />
+                    </div>
+                  </div>
+                  <div class="flex items-baseline gap-1">
+                    <span class="font-display text-2xl font-black text-slate-900 dark:text-slate-100 leading-none">
+                      {rataIntensitas()}
+                    </span>
+                    <span class="font-display text-xs font-bold text-orange-500">%</span>
+                  </div>
+                </div>
+
+                <div class="mt-3 pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-[10px]">
+                  <span class="font-data text-slate-400">Batas Toleransi</span>
+                  <span class="font-display font-bold text-orange-600">10.0%</span>
+                </div>
+              </Card>
+
+              <Card variant="elevated" class="p-3.5 flex flex-col justify-between bg-white dark:bg-slate-900">
+                <div>
+                  <div class="flex items-center justify-between text-slate-500 dark:text-slate-400 mb-1.5">
+                    <span class="font-display text-[10px] font-black tracking-wider uppercase">
+                      TOTAL SAMPEL
+                    </span>
+                    <div class="w-6 h-6 rounded-lg bg-violet-50 dark:bg-purple-950/40 text-violet-600 flex items-center justify-center">
+                      <Leaf size={14} weight="bold" />
+                    </div>
+                  </div>
+                  <div class="font-display text-2xl font-black text-slate-900 dark:text-slate-100 leading-none">
+                    {totalTanamanSampel()}
+                  </div>
+                </div>
+
+                <div class="mt-3 pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-[10px]">
+                  <span class="font-data text-slate-400">Terserang</span>
+                  <span class="font-display font-bold text-orange-600">
+                    {totalTanamanTerserang()} Tanaman
+                  </span>
+                </div>
+              </Card>
+
+              <Card variant="elevated" class="p-3.5 flex flex-col justify-between bg-white dark:bg-slate-900">
+                <div>
+                  <div class="flex items-center justify-between text-slate-500 dark:text-slate-400 mb-1.5">
+                    <span class="font-display text-[10px] font-black tracking-wider uppercase">
+                      HAMA DOMINAN
+                    </span>
+                    <div class="w-6 h-6 rounded-lg bg-orange-50 dark:bg-orange-950/40 text-orange-500 flex items-center justify-center">
+                      <Bug size={14} weight="duotone" />
+                    </div>
+                  </div>
+                  <div class="font-display text-sm font-black text-slate-900 dark:text-slate-100 truncate leading-snug">
+                    {topOpt()?.name || '-'}
+                  </div>
+                </div>
+
+                <div class="mt-3 pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-[10px]">
+                  <span class="font-data text-slate-400">Dominansi</span>
+                  <span class="font-display font-bold text-violet-700 dark:text-purple-400">
+                    {topOpt()?.percentage || 0}%
+                  </span>
+                </div>
+              </Card>
+            </div>
+
+            {/* 3. Grafik Tren Serangan 7 Hari */}
+            <Card variant="default" class="p-4 space-y-3">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                  <div class="p-1.5 rounded-lg bg-violet-50 dark:bg-purple-950/50 text-violet-700 dark:text-purple-300">
+                    <TrendUp size={18} weight="bold" />
+                  </div>
+                  <h2 class="font-display text-xs font-black text-slate-800 dark:text-slate-100 tracking-wider">
+                    TREN SERANGAN 7 HARI
+                  </h2>
+                </div>
+
+                <div
+                  class={`flex items-center gap-1 px-2 py-0.5 rounded-lg border text-[10px] font-display font-black uppercase ${
+                    trendStatus().type === 'up'
+                      ? 'bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-950/40 dark:text-orange-400 dark:border-orange-800'
+                      : trendStatus().type === 'down'
+                      ? 'bg-violet-50 text-violet-700 border-violet-200 dark:bg-purple-950/40 dark:text-purple-400 dark:border-purple-800'
+                      : 'bg-slate-50 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700'
+                  }`}
+                >
+                  <Show when={trendStatus().type === 'up'}>
+                    <TrendUp size={12} weight="bold" />
+                  </Show>
+                  <Show when={trendStatus().type === 'down'}>
+                    <TrendDown size={12} weight="bold" />
+                  </Show>
+                  <Show when={trendStatus().type === 'neutral'}>
+                    <Minus size={12} weight="bold" />
+                  </Show>
+                  <span>{trendStatus().text}</span>
+                </div>
+              </div>
+
+              <IntensityTrendChart
+                data={trendData()}
+                thresholdWaspada={5.0}
+                thresholdEkonomi={10.0}
+              />
+            </Card>
+
+            {/* 4. Persentase Spesies OPT */}
+            <Card variant="default" class="p-4 space-y-3">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                  <div class="p-1.5 rounded-lg bg-orange-50 dark:bg-orange-950/40 text-orange-600 dark:text-orange-400">
+                    <Bug size={18} weight="duotone" />
+                  </div>
+                  <h2 class="font-display text-xs font-black text-slate-800 dark:text-slate-100 tracking-wider">
+                    PERSENTASE SPESIES OPT
+                  </h2>
+                </div>
+
+                <span class="font-display text-[10px] font-bold text-slate-400">
+                  {totalOptCases()} Kasus Terdeteksi
                 </span>
-                <span class="font-data text-[11px] text-slate-500 dark:text-slate-400 block">
-                  Seluruh petak berada di bawah ambang ekonomi (10%).
-                </span>
+              </div>
+
+              <OptDistributionChart data={optRanking()} />
+
+              <div class="space-y-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                <For each={optRanking()}>
+                  {(item, idx) => (
+                    <div class="space-y-1">
+                      <div class="flex items-center justify-between text-xs">
+                        <div class="flex items-center gap-2 min-w-0">
+                          <span
+                            class={`w-2 h-2 rounded-full shrink-0 ${
+                              idx() === 0 ? 'bg-orange-500' : 'bg-violet-600'
+                            }`}
+                          />
+                          <span class="font-display font-bold text-slate-800 dark:text-slate-200 truncate">
+                            {item.name}
+                          </span>
+                        </div>
+
+                        <div class="flex items-center gap-2 shrink-0">
+                          <span class="font-data text-[10px] text-slate-400">
+                            {item.count} Kasus
+                          </span>
+                          <span
+                            class={`font-display text-[11px] font-black px-1.5 py-0.5 rounded ${
+                              idx() === 0
+                                ? 'bg-orange-100 text-orange-700 dark:bg-orange-950/60 dark:text-orange-300'
+                                : 'bg-purple-100 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300'
+                            }`}
+                          >
+                            {item.percentage}%
+                          </span>
+                        </div>
+                      </div>
+
+                      <div class="w-full h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                        <div
+                          class={`h-full rounded-full transition-all duration-500 ${
+                            idx() === 0 ? 'bg-orange-500' : 'bg-violet-600'
+                          }`}
+                          style={{ width: `${Math.min(item.percentage || 0, 100)}%` }}
+                        />
+                      </div>
+                    </div>
+                  )}
+                </For>
+              </div>
+            </Card>
+
+            {/* 5. Kondisi Petak Lahan */}
+            <div id="riwayat-section" class="space-y-3 pt-1">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                  <Leaf size={18} weight="duotone" class="text-violet-600 dark:text-purple-400" />
+                  <h2 class="font-display text-xs font-black text-slate-800 dark:text-slate-100 tracking-wider">
+                    KONDISI PETAK LAHAN
+                  </h2>
+                </div>
+              </div>
+
+              {/* Filter Status Pills */}
+              <div class="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs">
+                {(['SEMUA', 'BAHAYA', 'WASPADA', 'AMAN'] as const).map((st) => (
+                  <button
+                    type="button"
+                    onClick={() => setFilterStatus(st)}
+                    class={`font-display text-[11px] font-bold px-3 py-1.5 rounded-xl transition-all whitespace-nowrap ${
+                      filterStatus() === st
+                        ? 'bg-slate-900 dark:bg-violet-600 text-white shadow-xs'
+                        : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800'
+                    }`}
+                  >
+                    {st}
+                  </button>
+                ))}
+              </div>
+
+              {/* Daftar Kartu Riwayat Lahan */}
+              <div class="space-y-2">
+                <For
+                  each={filteredObservations()}
+                  fallback={
+                    <div class="p-8 text-center bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800">
+                      <Info size={28} weight="duotone" class="mx-auto text-slate-300 dark:text-slate-600 mb-2" />
+                      <p class="font-data text-xs text-slate-400">Tidak ada data observasi</p>
+                    </div>
+                  }
+                >
+                  {(obs) => (
+                    <div
+                      onClick={() => setSelectedObs(obs)}
+                      class="p-3.5 bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 hover:border-violet-300 dark:hover:border-violet-500 shadow-xs hover:shadow-md transition-all cursor-pointer space-y-2.5"
+                    >
+                      <div class="flex items-center justify-between">
+                        <div class="space-y-0.5">
+                          <div class="flex items-center gap-1.5">
+                            <span class="font-display font-bold text-xs text-slate-900 dark:text-slate-100">
+                              {obs.petak || 'Petak Lapangan'} · {obs.komoditas}
+                            </span>
+                            <span class="font-data text-[10px] text-slate-400">
+                              ({obs.fase})
+                            </span>
+                          </div>
+                          <div class="flex items-center gap-2">
+                            <span class="font-display text-xs font-semibold text-slate-700 dark:text-slate-300">
+                              {obs.opt_nama}
+                            </span>
+                            <span class="font-data text-[10px] text-slate-400">
+                              Sampel: {obs.total_terserang}/{obs.total_sampel}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div class="flex items-center gap-2.5">
+                          <div class="text-right">
+                            <div class="font-display font-black text-sm text-slate-900 dark:text-slate-100">
+                              {obs.intensitas_persen}%
+                            </div>
+                            <span
+                              class={`font-display text-[9px] font-black px-1.5 py-0.5 rounded uppercase ${
+                                obs.status_bahaya === 'BAHAYA'
+                                  ? 'bg-orange-100 dark:bg-orange-950/60 text-orange-700 dark:text-orange-400'
+                                  : obs.status_bahaya === 'WASPADA'
+                                  ? 'bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-400'
+                                  : 'bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300'
+                              }`}
+                            >
+                              {obs.status_bahaya}
+                            </span>
+                          </div>
+                          <CaretRight size={16} weight="bold" class="text-slate-300 dark:text-slate-600" />
+                        </div>
+                      </div>
+
+                      <div class="relative w-full h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                        <div
+                          class={`h-full rounded-full transition-all duration-300 ${
+                            obs.status_bahaya === 'BAHAYA'
+                              ? 'bg-orange-600'
+                              : obs.status_bahaya === 'WASPADA'
+                              ? 'bg-amber-500'
+                              : 'bg-purple-600'
+                          }`}
+                          style={{ width: `${Math.min(obs.intensitas_persen, 100)}%` }}
+                        />
+                      </div>
+                    </div>
+                  )}
+                </For>
               </div>
             </div>
-            <span class="font-display text-[10px] font-black px-2 py-1 rounded-lg bg-white dark:bg-slate-800 text-violet-700 dark:text-purple-300 border border-violet-200 dark:border-purple-800 shadow-xs uppercase">
-              Aman
-            </span>
+
+            {/* 6. Tombol Navigasi Cepat di Akhir Halaman */}
+            <div class="pt-2 pb-4">
+              <button
+                type="button"
+                onClick={() => navigate('/observasi')}
+                class="w-full group p-4 rounded-2xl bg-gradient-to-r from-orange-500 via-orange-600 to-amber-600 hover:from-orange-600 hover:to-amber-700 active:translate-y-0.5 text-white shadow-xl shadow-orange-600/20 transition-all flex items-center justify-between border border-orange-400/40 relative overflow-hidden"
+              >
+                <div class="absolute -right-6 -bottom-6 w-28 h-28 bg-white/10 rounded-full blur-xl pointer-events-none group-hover:scale-110 transition-transform duration-300" />
+
+                <div class="flex items-center gap-3.5 relative z-10">
+                  <div class="w-12 h-12 rounded-xl bg-white/20 backdrop-blur-xs flex items-center justify-center shrink-0 shadow-inner group-hover:rotate-6 transition-transform">
+                    <Camera size={26} weight="fill" class="text-white" />
+                  </div>
+                  <div class="text-left space-y-0.5">
+                    <span class="font-display text-sm font-black tracking-wide block uppercase text-white drop-shadow-xs">
+                      Mulai Observasi Lahan Baru
+                    </span>
+                    <span class="font-data text-[11px] text-orange-100 font-medium block">
+                      Ambil foto OPT & hitung ambang serangan petak
+                    </span>
+                  </div>
+                </div>
+
+                <div class="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center shrink-0 group-hover:translate-x-1 transition-transform relative z-10">
+                  <ArrowRight size={18} weight="bold" class="text-white" />
+                </div>
+              </button>
+            </div>
           </div>
         }
       >
-        <div class="p-4 rounded-2xl bg-orange-50 dark:bg-orange-950/40 border-2 border-orange-500 shadow-lg shadow-orange-500/10 space-y-3">
-          {/* Header Peringatan Dini */}
-          <div class="flex items-center justify-between">
-            <div class="flex items-center gap-2.5">
-              <div class="w-8 h-8 rounded-lg bg-orange-500 flex items-center justify-center text-white shrink-0 shadow-xs animate-pulse">
-                <WarningCircle size={22} weight="fill" />
+        {/* =========================================================================
+           TAMPILAN KHUSUS SUPERADMIN: PUSAT PENGAWASAN MAKRO WILAYAH
+           Peta sebaran geospasial, metrik akumulasi global, audit data master, AI watchdog
+           ========================================================================= */}
+        <div class="space-y-4">
+          {/* 1. Header Pengawasan Makro Administratif */}
+          <div class="p-4 rounded-2xl bg-gradient-to-br from-slate-900 to-slate-800 text-white shadow-lg border border-slate-700/80 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-xl bg-violet-600/30 border border-violet-500/40 flex items-center justify-center text-violet-400 shrink-0">
+                <Globe size={24} weight="duotone" />
               </div>
               <div>
-                <span class="font-display text-xs font-black text-orange-950 dark:text-orange-200 tracking-wider block">
-                  PERINGATAN DINI PHT
+                <span class="font-display text-xs font-black tracking-wider uppercase text-purple-200 block">
+                  PENGAWASAN MAKRO REGIONAL
                 </span>
-                <span class="font-data text-[11px] text-orange-700 dark:text-orange-300 block font-medium">
-                  {bahayaList().length} petak lahan melewati batas toleransi ambang ekonomi
+                <span class="font-data text-[11px] text-slate-300 block">
+                  Pusat Kendali Geospasial & Rekapitulasi PHT Lintas Petani
                 </span>
               </div>
             </div>
-            <span class="font-display text-[9px] font-black px-2 py-0.5 rounded-full bg-orange-600 text-white uppercase tracking-wider">
-              BAHAYA
-            </span>
+
+            <button
+              type="button"
+              onClick={() => setPrintModalOpen(true)}
+              class="px-3 py-1.5 rounded-xl bg-violet-600 hover:bg-violet-700 active:scale-95 text-white font-display text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 shrink-0"
+              title="Cetak Dokumen Resmi"
+            >
+              <Printer size={16} weight="bold" />
+              <span class="hidden sm:inline">Cetak Dokumen</span>
+            </button>
           </div>
 
-          {/* Kartu Petak Spesifik yang Butuh Tindakan Hari Ini */}
-          <div class="space-y-2 pt-1">
-            <For each={bahayaList()}>
-              {(item) => (
-                <div class="p-3 rounded-xl bg-white dark:bg-slate-900 border border-orange-300 dark:border-orange-800 flex items-center justify-between gap-2 shadow-xs">
-                  <div class="space-y-0.5 min-w-0">
-                    <div class="flex items-center gap-1.5 flex-wrap">
-                      <span class="font-display text-xs font-black text-slate-900 dark:text-slate-100">
-                        {item.petak || 'Petak Lapangan'}
-                      </span>
-                      <span class="font-data text-[10px] text-slate-400">
-                        · {item.komoditas} ({item.fase})
-                      </span>
+          {/* 2. Peta Sebaran Wabah Secara Geospasial (Outbreak Map) */}
+          <Card variant="default" class="p-4 space-y-3">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <div class="p-1.5 rounded-lg bg-orange-50 dark:bg-orange-950/40 text-orange-600 dark:text-orange-400">
+                  <Compass size={18} weight="bold" />
+                </div>
+                <div>
+                  <h2 class="font-display text-xs font-black text-slate-800 dark:text-slate-100 tracking-wider">
+                    PETA SEBARAN WABAH GEOSPASIAL
+                  </h2>
+                </div>
+              </div>
+
+              <span class="font-display text-[10px] font-black px-2 py-0.5 rounded-lg bg-orange-100 dark:bg-orange-950/60 text-orange-700 dark:text-orange-300 uppercase">
+                {bahayaList().length} Hotspot Kritis
+              </span>
+            </div>
+
+            <p class="font-data text-xs text-slate-500 dark:text-slate-400">
+              Pantau titik-titik lahan berstatus bahaya dan vektor pergerakan ledakan hama (outbreak) secara real-time.
+            </p>
+
+            {/* Peta Geospasial Interaktif */}
+            <GeospatialOutbreakMap
+              observations={observasiList()}
+              onSelect={(obs) => setSelectedObs(obs)}
+            />
+          </Card>
+
+          {/* 3. Metrik Akumulasi Global (4 Kartu Makro) */}
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+            {/* Metrik 1: Total Pengguna Terdaftar */}
+            <Card variant="elevated" class="p-3.5 flex flex-col justify-between bg-white dark:bg-slate-900">
+              <div class="flex items-center justify-between text-slate-500 dark:text-slate-400 mb-1.5">
+                <span class="font-display text-[10px] font-black tracking-wider uppercase">
+                  PENGGUNA
+                </span>
+                <div class="w-6 h-6 rounded-lg bg-violet-50 dark:bg-purple-950/40 text-violet-600 flex items-center justify-center">
+                  <Users size={14} weight="bold" />
+                </div>
+              </div>
+              <div class="font-display text-2xl font-black text-slate-900 dark:text-slate-100 leading-none">
+                {adminMacro()?.totalUsers ?? 4}
+              </div>
+              <div class="mt-2.5 pt-1.5 border-t border-slate-100 dark:border-slate-800 text-[10px] text-slate-400">
+                Akun Terintegrasi
+              </div>
+            </Card>
+
+            {/* Metrik 2: Jumlah Petak Lahan Terpantau */}
+            <Card variant="elevated" class="p-3.5 flex flex-col justify-between bg-white dark:bg-slate-900">
+              <div class="flex items-center justify-between text-slate-500 dark:text-slate-400 mb-1.5">
+                <span class="font-display text-[10px] font-black tracking-wider uppercase">
+                  PETAK LAHAN
+                </span>
+                <div class="w-6 h-6 rounded-lg bg-purple-50 dark:bg-purple-950/40 text-purple-600 flex items-center justify-center">
+                  <MapPin size={14} weight="bold" />
+                </div>
+              </div>
+              <div class="font-display text-2xl font-black text-slate-900 dark:text-slate-100 leading-none">
+                {adminMacro()?.totalPetak ?? 3}
+              </div>
+              <div class="mt-2.5 pt-1.5 border-t border-slate-100 dark:border-slate-800 text-[10px] text-slate-400">
+                {observasiList().length} Observasi Lapangan
+              </div>
+            </Card>
+
+            {/* Metrik 3: Rata Tingkat Kerusakan Regional */}
+            <Card variant="elevated" class="p-3.5 flex flex-col justify-between bg-white dark:bg-slate-900">
+              <div class="flex items-center justify-between text-slate-500 dark:text-slate-400 mb-1.5">
+                <span class="font-display text-[10px] font-black tracking-wider uppercase">
+                  RATA REGIONAL
+                </span>
+                <div class="w-6 h-6 rounded-lg bg-orange-50 dark:bg-orange-950/40 text-orange-600 flex items-center justify-center">
+                  <TrendUp size={14} weight="bold" />
+                </div>
+              </div>
+              <div class="flex items-baseline gap-0.5">
+                <span class="font-display text-2xl font-black text-slate-900 dark:text-slate-100 leading-none">
+                  {rataIntensitas()}
+                </span>
+                <span class="font-display text-xs font-bold text-orange-500">%</span>
+              </div>
+              <div class="mt-2.5 pt-1.5 border-t border-slate-100 dark:border-slate-800 text-[10px] text-orange-600 font-bold">
+                {bahayaList().length} Titik Bahaya
+              </div>
+            </Card>
+
+            {/* Metrik 4: Spesies Paling Dominan Regional */}
+            <Card variant="elevated" class="p-3.5 flex flex-col justify-between bg-white dark:bg-slate-900">
+              <div class="flex items-center justify-between text-slate-500 dark:text-slate-400 mb-1.5">
+                <span class="font-display text-[10px] font-black tracking-wider uppercase">
+                  OPT DOMINAN
+                </span>
+                <div class="w-6 h-6 rounded-lg bg-orange-50 dark:bg-orange-950/40 text-orange-500 flex items-center justify-center">
+                  <Bug size={14} weight="duotone" />
+                </div>
+              </div>
+              <div class="font-display text-xs font-black text-slate-900 dark:text-slate-100 truncate leading-snug">
+                {topOpt()?.name || '-'}
+              </div>
+              <div class="mt-2.5 pt-1.5 border-t border-slate-100 dark:border-slate-800 text-[10px] text-violet-700 dark:text-purple-400 font-bold">
+                {topOpt()?.percentage || 0}% Wilayah
+              </div>
+            </Card>
+          </div>
+
+          {/* 4. Panel Pemantauan Kinerja AI & Integritas Master Data (Watchdog Panel) */}
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {/* Panel 4A: Kinerja Keakuratan AI Vision */}
+            <Card variant="default" class="p-3.5 space-y-2 bg-white dark:bg-slate-900">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                  <div class="w-7 h-7 rounded-lg bg-violet-100 dark:bg-purple-900/50 flex items-center justify-center text-violet-700 dark:text-purple-300">
+                    <Sparkle size={16} weight="fill" />
+                  </div>
+                  <span class="font-display text-xs font-black text-slate-800 dark:text-slate-100 tracking-wider">
+                    KEAKURATAN AI VISION
+                  </span>
+                </div>
+                <span class="font-display text-[10px] font-black px-1.5 py-0.5 rounded bg-violet-100 dark:bg-purple-950/60 text-violet-700 dark:text-purple-300 uppercase">
+                  Google Gemini
+                </span>
+              </div>
+
+              <div class="flex items-baseline gap-2">
+                <span class="font-display text-2xl font-black text-violet-700 dark:text-purple-400">
+                  {adminMacro()?.avgAiConfidence ?? 94.0}%
+                </span>
+                <span class="font-data text-xs text-slate-400">Rata-rata Confidence Score</span>
+              </div>
+
+              <div class="pt-1 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400">
+                <span>Total Verifikasi AI:</span>
+                <span class="font-bold text-slate-700 dark:text-slate-200">
+                  {adminMacro()?.totalAiDetections ?? 2} Citra Lapangan
+                </span>
+              </div>
+            </Card>
+
+            {/* Panel 4B: Audit Ketersediaan Data Master (Watchdog Gap Alert) */}
+            <Show
+              when={(adminMacro()?.unconfiguredOptCount ?? 0) > 0}
+              fallback={
+                <Card variant="default" class="p-3.5 space-y-2 bg-white dark:bg-slate-900 border-violet-200 dark:border-purple-900/60">
+                  <div class="flex items-center gap-2">
+                    <div class="w-7 h-7 rounded-lg bg-violet-100 dark:bg-purple-900/50 flex items-center justify-center text-violet-700 dark:text-purple-300">
+                      <ShieldCheck size={16} weight="fill" />
                     </div>
-                    <div class="font-display text-[11px] font-bold text-orange-600 dark:text-orange-400 truncate">
-                      {item.opt_nama}
+                    <span class="font-display text-xs font-black text-slate-800 dark:text-slate-100 tracking-wider">
+                      INTEGRITAS DATA MASTER
+                    </span>
+                  </div>
+                  <p class="font-data text-xs text-slate-600 dark:text-slate-300">
+                    Seluruh laporan hama lapangan telah memiliki parameter ambang batas ekonomi resmi.
+                  </p>
+                  <div class="pt-1 border-t border-slate-100 dark:border-slate-800 text-[10px] text-violet-700 dark:text-purple-400 font-bold uppercase">
+                    Status: 100% Terkonfigurasi
+                  </div>
+                </Card>
+              }
+            >
+              <div class="p-3.5 rounded-2xl bg-orange-50 dark:bg-orange-950/40 border-2 border-orange-500 shadow-sm space-y-2">
+                <div class="flex items-center justify-between">
+                  <div class="flex items-center gap-2">
+                    <div class="w-7 h-7 rounded-lg bg-orange-500 flex items-center justify-center text-white shrink-0">
+                      <WarningOctagon size={16} weight="fill" />
+                    </div>
+                    <span class="font-display text-xs font-black text-orange-950 dark:text-orange-200 tracking-wider">
+                      PERINGATAN DATA MASTER
+                    </span>
+                  </div>
+                  <span class="font-display text-[9px] font-black px-1.5 py-0.5 rounded bg-orange-600 text-white uppercase">
+                    {(adminMacro()?.unconfiguredOptList || []).length} OPT BARU
+                  </span>
+                </div>
+
+                <p class="font-data text-xs text-orange-900 dark:text-orange-200 leading-snug">
+                  Ditemukan laporan OPT baru dari lapangan tanpa nilai ambang batas ekonomi:
+                </p>
+
+                <div class="flex flex-wrap gap-1.5 pt-0.5">
+                  <For each={adminMacro()?.unconfiguredOptList || []}>
+                    {(optName) => (
+                      <span class="font-display text-[11px] font-bold px-2 py-0.5 rounded-lg bg-white dark:bg-slate-900 text-orange-700 dark:text-orange-400 border border-orange-300 dark:border-orange-800 shadow-xs">
+                        {optName}
+                      </span>
+                    )}
+                  </For>
+                </div>
+
+                <div class="pt-1">
+                  <Button
+                    type="button"
+                    variant="primary"
+                    size="sm"
+                    fullWidth
+                    onClick={() => navigate('/ambang-ekonomi')}
+                    class="shadow-xs"
+                  >
+                    <SlidersHorizontal size={14} weight="bold" />
+                    <span>Atur Parameter Ambang Sekarang</span>
+                  </Button>
+                </div>
+              </div>
+            </Show>
+          </div>
+
+          {/* 5. Grafik Analisis Tren OPT Regional Skala Wilayah */}
+          <Card variant="default" class="p-4 space-y-3">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <div class="p-1.5 rounded-lg bg-violet-50 dark:bg-purple-950/50 text-violet-700 dark:text-purple-300">
+                  <TrendUp size={18} weight="bold" />
+                </div>
+                <h2 class="font-display text-xs font-black text-slate-800 dark:text-slate-100 tracking-wider">
+                  FLUKTUASI TREN KERUSAKAN REGIONAL (7 HARI)
+                </h2>
+              </div>
+
+              <div
+                class={`flex items-center gap-1 px-2 py-0.5 rounded-lg border text-[10px] font-display font-black uppercase ${
+                  trendStatus().type === 'up'
+                    ? 'bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-950/40 dark:text-orange-400 dark:border-orange-800'
+                    : trendStatus().type === 'down'
+                    ? 'bg-violet-50 text-violet-700 border-violet-200 dark:bg-purple-950/40 dark:text-purple-400 dark:border-purple-800'
+                    : 'bg-slate-50 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700'
+                }`}
+              >
+                <Show when={trendStatus().type === 'up'}>
+                  <TrendUp size={12} weight="bold" />
+                </Show>
+                <Show when={trendStatus().type === 'down'}>
+                  <TrendDown size={12} weight="bold" />
+                </Show>
+                <Show when={trendStatus().type === 'neutral'}>
+                  <Minus size={12} weight="bold" />
+                </Show>
+                <span>{trendStatus().text}</span>
+              </div>
+            </div>
+
+            <IntensityTrendChart
+              data={trendData()}
+              thresholdWaspada={5.0}
+              thresholdEkonomi={10.0}
+            />
+          </Card>
+
+          {/* 6. Persentase Spesies OPT Regional */}
+          <Card variant="default" class="p-4 space-y-3">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <div class="p-1.5 rounded-lg bg-orange-50 dark:bg-orange-950/40 text-orange-600 dark:text-orange-400">
+                  <Bug size={18} weight="duotone" />
+                </div>
+                <h2 class="font-display text-xs font-black text-slate-800 dark:text-slate-100 tracking-wider">
+                  DISTRIBUSI POPULASI OPT SKALA REGIONAL
+                </h2>
+              </div>
+
+              <span class="font-display text-[10px] font-bold text-slate-400">
+                {totalOptCases()} Kasus Total
+              </span>
+            </div>
+
+            <OptDistributionChart data={optRanking()} />
+
+            <div class="space-y-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+              <For each={optRanking()}>
+                {(item, idx) => (
+                  <div class="space-y-1">
+                    <div class="flex items-center justify-between text-xs">
+                      <div class="flex items-center gap-2 min-w-0">
+                        <span
+                          class={`w-2 h-2 rounded-full shrink-0 ${
+                            idx() === 0 ? 'bg-orange-500' : 'bg-violet-600'
+                          }`}
+                        />
+                        <span class="font-display font-bold text-slate-800 dark:text-slate-200 truncate">
+                          {item.name}
+                        </span>
+                      </div>
+
+                      <div class="flex items-center gap-2 shrink-0">
+                        <span class="font-data text-[10px] text-slate-400">
+                          {item.count} Kasus
+                        </span>
+                        <span
+                          class={`font-display text-[11px] font-black px-1.5 py-0.5 rounded ${
+                            idx() === 0
+                              ? 'bg-orange-100 text-orange-700 dark:bg-orange-950/60 dark:text-orange-300'
+                              : 'bg-purple-100 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300'
+                          }`}
+                        >
+                          {item.percentage}%
+                        </span>
+                      </div>
+                    </div>
+
+                    <div class="w-full h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                      <div
+                        class={`h-full rounded-full transition-all duration-500 ${
+                          idx() === 0 ? 'bg-orange-500' : 'bg-violet-600'
+                        }`}
+                        style={{ width: `${Math.min(item.percentage || 0, 100)}%` }}
+                      />
                     </div>
                   </div>
+                )}
+              </For>
+            </div>
+          </Card>
 
-                  <div class="flex items-center gap-2 shrink-0">
-                    <div class="text-right">
-                      <div class="font-display text-sm font-black text-orange-600 leading-tight">
-                        {item.intensitas_persen}%
-                      </div>
-                      <span class="font-data text-[9px] text-slate-400 block">
-                        Ambang 10%
-                      </span>
-                    </div>
+          {/* 7. Tombol Pintasan Manajemen Tingkat Lanjut Superadmin */}
+          <div class="space-y-2 pt-1">
+            <span class="font-display text-xs font-black text-slate-800 dark:text-slate-100 tracking-wider uppercase block">
+              PUSAT KENDALI ADMINISTRATIF
+            </span>
 
-                    <button
-                      type="button"
-                      onClick={() => setSelectedObs(item)}
-                      class="px-2.5 py-1.5 rounded-lg bg-orange-500 hover:bg-orange-600 active:scale-95 text-white font-display text-[11px] font-bold transition-all shadow-xs flex items-center gap-1"
-                    >
-                      <span>Tindakan</span>
-                      <CaretRight size={12} weight="bold" />
-                    </button>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+              {/* Pintasan 1: Manajemen Pengguna */}
+              <button
+                type="button"
+                onClick={() => navigate('/users')}
+                class="p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-violet-400 dark:hover:border-violet-500 text-left shadow-xs hover:shadow-md transition-all flex items-center justify-between group active:scale-98"
+              >
+                <div class="flex items-center gap-3">
+                  <div class="w-10 h-10 rounded-xl bg-violet-50 dark:bg-purple-950/50 flex items-center justify-center text-violet-700 dark:text-purple-300 group-hover:scale-105 transition-transform">
+                    <Users size={20} weight="bold" />
+                  </div>
+                  <div>
+                    <span class="font-display text-xs font-black text-slate-900 dark:text-slate-100 block">
+                      Hak Akses Akun
+                    </span>
+                    <span class="font-data text-[11px] text-slate-500 dark:text-slate-400 block">
+                      Kelola Petani & Admin
+                    </span>
                   </div>
                 </div>
-              )}
-            </For>
+                <CaretRight size={16} weight="bold" class="text-slate-400 group-hover:translate-x-1 transition-transform" />
+              </button>
+
+              {/* Pintasan 2: Kelola Ambang Ekonomi */}
+              <button
+                type="button"
+                onClick={() => navigate('/ambang-ekonomi')}
+                class="p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-orange-400 dark:hover:border-orange-500 text-left shadow-xs hover:shadow-md transition-all flex items-center justify-between group active:scale-98"
+              >
+                <div class="flex items-center gap-3">
+                  <div class="w-10 h-10 rounded-xl bg-orange-50 dark:bg-orange-950/40 flex items-center justify-center text-orange-600 dark:text-orange-400 group-hover:scale-105 transition-transform">
+                    <SlidersHorizontal size={20} weight="bold" />
+                  </div>
+                  <div>
+                    <span class="font-display text-xs font-black text-slate-900 dark:text-slate-100 block">
+                      Ambang Ekonomi
+                    </span>
+                    <span class="font-data text-[11px] text-slate-500 dark:text-slate-400 block">
+                      Formula Batas & Rekomendasi
+                    </span>
+                  </div>
+                </div>
+                <CaretRight size={16} weight="bold" class="text-slate-400 group-hover:translate-x-1 transition-transform" />
+              </button>
+
+              {/* Pintasan 3: Cetak Dokumen Rekapitulasi Fisik */}
+              <button
+                type="button"
+                onClick={() => setPrintModalOpen(true)}
+                class="p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-purple-400 dark:hover:border-purple-500 text-left shadow-xs hover:shadow-md transition-all flex items-center justify-between group active:scale-98"
+              >
+                <div class="flex items-center gap-3">
+                  <div class="w-10 h-10 rounded-xl bg-purple-50 dark:bg-purple-950/50 flex items-center justify-center text-purple-700 dark:text-purple-300 group-hover:scale-105 transition-transform">
+                    <Printer size={20} weight="bold" />
+                  </div>
+                  <div>
+                    <span class="font-display text-xs font-black text-slate-900 dark:text-slate-100 block">
+                      Cetak Rekapitulasi
+                    </span>
+                    <span class="font-data text-[11px] text-slate-500 dark:text-slate-400 block">
+                      Dokumen Fisik & Ekspor
+                    </span>
+                  </div>
+                </div>
+                <CaretRight size={16} weight="bold" class="text-slate-400 group-hover:translate-x-1 transition-transform" />
+              </button>
+            </div>
+          </div>
+
+          {/* 8. Tabel Pengawasan Observasi Seluruh Petak Wilayah */}
+          <div id="riwayat-section" class="space-y-3 pt-2">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <Leaf size={18} weight="duotone" class="text-violet-600 dark:text-purple-400" />
+                <h2 class="font-display text-xs font-black text-slate-800 dark:text-slate-100 tracking-wider">
+                  TABEL PENGAWASAN LAPANGAN SELURUH WILAYAH
+                </h2>
+              </div>
+
+              <button
+                type="button"
+                onClick={exportCsv}
+                title="Unduh CSV"
+                class="p-1.5 rounded-lg text-violet-700 dark:text-purple-300 hover:text-violet-900 bg-violet-50 dark:bg-purple-950/50 hover:bg-violet-100 transition-colors"
+              >
+                <FileArrowDown size={16} weight="bold" />
+              </button>
+            </div>
+
+            {/* Filter Status Pills */}
+            <div class="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs">
+              {(['SEMUA', 'BAHAYA', 'WASPADA', 'AMAN'] as const).map((st) => (
+                <button
+                  type="button"
+                  onClick={() => setFilterStatus(st)}
+                  class={`font-display text-[11px] font-bold px-3 py-1.5 rounded-xl transition-all whitespace-nowrap ${
+                    filterStatus() === st
+                      ? 'bg-slate-900 dark:bg-violet-600 text-white shadow-xs'
+                      : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50'
+                  }`}
+                >
+                  {st}
+                </button>
+              ))}
+            </div>
+
+            {/* Daftar Kartu Lahan */}
+            <div class="space-y-2">
+              <For
+                each={filteredObservations()}
+                fallback={
+                  <div class="p-8 text-center bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800">
+                    <Info size={28} weight="duotone" class="mx-auto text-slate-300 dark:text-slate-600 mb-2" />
+                    <p class="font-data text-xs text-slate-400">Tidak ada data observasi</p>
+                  </div>
+                }
+              >
+                {(obs) => (
+                  <div
+                    onClick={() => setSelectedObs(obs)}
+                    class="p-3.5 bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 hover:border-violet-300 dark:hover:border-violet-500 shadow-xs hover:shadow-md transition-all cursor-pointer space-y-2.5"
+                  >
+                    <div class="flex items-center justify-between">
+                      <div class="space-y-0.5">
+                        <div class="flex items-center gap-1.5">
+                          <span class="font-display font-bold text-xs text-slate-900 dark:text-slate-100">
+                            {obs.petak || 'Petak Lapangan'} · {obs.komoditas}
+                          </span>
+                          <span class="font-data text-[10px] text-slate-400">
+                            ({obs.fase})
+                          </span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                          <span class="font-display text-xs font-semibold text-slate-700 dark:text-slate-300">
+                            {obs.opt_nama}
+                          </span>
+                          <span class="font-data text-[10px] text-slate-400">
+                            Sampel: {obs.total_terserang}/{obs.total_sampel}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div class="flex items-center gap-2.5">
+                        <div class="text-right">
+                          <div class="font-display font-black text-sm text-slate-900 dark:text-slate-100">
+                            {obs.intensitas_persen}%
+                          </div>
+                          <span
+                            class={`font-display text-[9px] font-black px-1.5 py-0.5 rounded uppercase ${
+                              obs.status_bahaya === 'BAHAYA'
+                                ? 'bg-orange-100 dark:bg-orange-950/60 text-orange-700 dark:text-orange-400'
+                                : obs.status_bahaya === 'WASPADA'
+                                ? 'bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-400'
+                                : 'bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300'
+                            }`}
+                          >
+                            {obs.status_bahaya}
+                          </span>
+                        </div>
+                        <CaretRight size={16} weight="bold" class="text-slate-300 dark:text-slate-600" />
+                      </div>
+                    </div>
+
+                    <div class="relative w-full h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                      <div
+                        class={`h-full rounded-full transition-all duration-300 ${
+                          obs.status_bahaya === 'BAHAYA'
+                            ? 'bg-orange-600'
+                            : obs.status_bahaya === 'WASPADA'
+                            ? 'bg-amber-500'
+                            : 'bg-purple-600'
+                        }`}
+                        style={{ width: `${Math.min(obs.intensitas_persen, 100)}%` }}
+                      />
+                    </div>
+                  </div>
+                )}
+              </For>
+            </div>
           </div>
         </div>
       </Show>
 
       {/* =========================================================================
-          2. METRIK RINGKASAN HARIAN
-          Menampilkan metrik harian kondisi kesehatan lahan secara visual
-      ========================================================================= */}
-      <div class="grid grid-cols-2 gap-3">
-        {/* Metrik 1: Status PHT */}
-        <div
-          class={`p-3.5 rounded-2xl flex flex-col justify-between text-white shadow-md transition-all ${
-            bahayaList().length > 0
-              ? 'bg-gradient-to-br from-orange-500 to-orange-700 shadow-orange-500/10'
-              : waspadaList().length > 0
-              ? 'bg-gradient-to-br from-amber-500 to-amber-700 shadow-amber-500/10'
-              : 'bg-gradient-to-br from-violet-600 to-purple-800 shadow-purple-900/10'
-          }`}
-        >
-          <div>
-            <div class="flex items-center justify-between opacity-90 mb-1.5">
-              <span class="font-display text-[10px] font-black tracking-wider uppercase text-purple-100">
-                STATUS KESEHATAN
-              </span>
-              <div class="w-6 h-6 rounded-lg bg-white/20 flex items-center justify-center">
-                <Show
-                  when={bahayaList().length > 0}
-                  fallback={<ShieldCheck size={14} weight="fill" />}
-                >
-                  <ShieldWarning size={14} weight="fill" />
-                </Show>
-              </div>
-            </div>
-            <div class="font-display text-xl font-black tracking-tight leading-none">
-              {bahayaList().length > 0 ? 'BAHAYA' : waspadaList().length > 0 ? 'WASPADA' : 'AMAN'}
-            </div>
-          </div>
-
-          <div class="mt-3 pt-2 border-t border-white/20 flex items-center justify-between text-[10px] font-bold">
-            <span class="uppercase">
-              {bahayaList().length > 0
-                ? `${bahayaList().length} Kritis`
-                : 'Terkendali'}
-            </span>
-            <span class="opacity-90">{observasiList().length} Petak</span>
-          </div>
-        </div>
-
-        {/* Metrik 2: Rata Intensitas Kerusakan */}
-        <Card variant="elevated" class="p-3.5 flex flex-col justify-between bg-white dark:bg-slate-900">
-          <div>
-            <div class="flex items-center justify-between text-slate-500 dark:text-slate-400 mb-1.5">
-              <span class="font-display text-[10px] font-black tracking-wider uppercase">
-                RATA KERUSAKAN
-              </span>
-              <div class="w-6 h-6 rounded-lg bg-orange-50 dark:bg-orange-950/40 text-orange-600 flex items-center justify-center">
-                <TrendUp size={14} weight="bold" />
-              </div>
-            </div>
-            <div class="flex items-baseline gap-1">
-              <span class="font-display text-2xl font-black text-slate-900 dark:text-slate-100 leading-none">
-                {rataIntensitas()}
-              </span>
-              <span class="font-display text-xs font-bold text-orange-500">%</span>
-            </div>
-          </div>
-
-          <div class="mt-3 pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-[10px]">
-            <span class="font-data text-slate-400">Batas Toleransi</span>
-            <span class="font-display font-bold text-orange-600">10.0%</span>
-          </div>
-        </Card>
-
-        {/* Metrik 3: Total Sampel Lapangan */}
-        <Card variant="elevated" class="p-3.5 flex flex-col justify-between bg-white dark:bg-slate-900">
-          <div>
-            <div class="flex items-center justify-between text-slate-500 dark:text-slate-400 mb-1.5">
-              <span class="font-display text-[10px] font-black tracking-wider uppercase">
-                TOTAL SAMPEL
-              </span>
-              <div class="w-6 h-6 rounded-lg bg-violet-50 dark:bg-purple-950/40 text-violet-600 flex items-center justify-center">
-                <Leaf size={14} weight="bold" />
-              </div>
-            </div>
-            <div class="font-display text-2xl font-black text-slate-900 dark:text-slate-100 leading-none">
-              {totalTanamanSampel()}
-            </div>
-          </div>
-
-          <div class="mt-3 pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-[10px]">
-            <span class="font-data text-slate-400">Terserang</span>
-            <span class="font-display font-bold text-orange-600">
-              {totalTanamanTerserang()} Tanaman
-            </span>
-          </div>
-        </Card>
-
-        {/* Metrik 4: OPT Terbanyak / Dominan */}
-        <Card variant="elevated" class="p-3.5 flex flex-col justify-between bg-white dark:bg-slate-900">
-          <div>
-            <div class="flex items-center justify-between text-slate-500 dark:text-slate-400 mb-1.5">
-              <span class="font-display text-[10px] font-black tracking-wider uppercase">
-                HAMA DOMINAN
-              </span>
-              <div class="w-6 h-6 rounded-lg bg-orange-50 dark:bg-orange-950/40 text-orange-500 flex items-center justify-center">
-                <Bug size={14} weight="duotone" />
-              </div>
-            </div>
-            <div class="font-display text-sm font-black text-slate-900 dark:text-slate-100 truncate leading-snug">
-              {topOpt()?.name || '-'}
-            </div>
-          </div>
-
-          <div class="mt-3 pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-[10px]">
-            <span class="font-data text-slate-400">Dominansi</span>
-            <span class="font-display font-bold text-violet-700 dark:text-purple-400">
-              {topOpt()?.percentage || 0}%
-            </span>
-          </div>
-        </Card>
-      </div>
-
-      {/* =========================================================================
-          3. GRAFIK TREN INTENSITAS KERUSAKAN
-          Menampilkan pergerakan naik-turunnya intensitas kerusakan dari waktu ke waktu
-      ========================================================================= */}
-      <Card variant="default" class="p-4 space-y-3">
-        <div class="flex items-center justify-between">
-          <div class="flex items-center gap-2">
-            <div class="p-1.5 rounded-lg bg-violet-50 dark:bg-purple-950/50 text-violet-700 dark:text-purple-300">
-              <TrendUp size={18} weight="bold" />
-            </div>
-            <div>
-              <h2 class="font-display text-xs font-black text-slate-800 dark:text-slate-100 tracking-wider">
-                TREN SERANGAN 7 HARI
-              </h2>
-            </div>
-          </div>
-
-          {/* Indikator Arah Tren */}
-          <div
-            class={`flex items-center gap-1 px-2 py-0.5 rounded-lg border text-[10px] font-display font-black uppercase ${
-              trendStatus().type === 'up'
-                ? 'bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-950/40 dark:text-orange-400 dark:border-orange-800'
-                : trendStatus().type === 'down'
-                ? 'bg-violet-50 text-violet-700 border-violet-200 dark:bg-purple-950/40 dark:text-purple-400 dark:border-purple-800'
-                : 'bg-slate-50 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700'
-            }`}
-          >
-            <Show when={trendStatus().type === 'up'}>
-              <TrendUp size={12} weight="bold" />
-            </Show>
-            <Show when={trendStatus().type === 'down'}>
-              <TrendDown size={12} weight="bold" />
-            </Show>
-            <Show when={trendStatus().type === 'neutral'}>
-              <Minus size={12} weight="bold" />
-            </Show>
-            <span>{trendStatus().text}</span>
-          </div>
-        </div>
-
-        {/* Visualisasi Tren Garis Chart.js */}
-        <IntensityTrendChart
-          data={trendData()}
-          thresholdWaspada={5.0}
-          thresholdEkonomi={10.0}
-        />
-      </Card>
-
-      {/* =========================================================================
-          4. PERSENTASE JENIS ORGANISME PENGGANGGU TERBANYAK
-          Menampilkan persentase jenis OPT yang paling sering terdeteksi di lahan
-      ========================================================================= */}
-      <Card variant="default" class="p-4 space-y-3">
-        <div class="flex items-center justify-between">
-          <div class="flex items-center gap-2">
-            <div class="p-1.5 rounded-lg bg-orange-50 dark:bg-orange-950/40 text-orange-600 dark:text-orange-400">
-              <Bug size={18} weight="duotone" />
-            </div>
-            <h2 class="font-display text-xs font-black text-slate-800 dark:text-slate-100 tracking-wider">
-              PERSENTASE SPESIES OPT
-            </h2>
-          </div>
-
-          <span class="font-display text-[10px] font-bold text-slate-400">
-            {totalOptCases()} Kasus Terdeteksi
-          </span>
-        </div>
-
-        {/* Horizontal Bar Chart */}
-        <OptDistributionChart data={optRanking()} />
-
-        {/* Visual Rincian Persentase Spesies */}
-        <div class="space-y-2 pt-2 border-t border-slate-100 dark:border-slate-800">
-          <For each={optRanking()}>
-            {(item, idx) => (
-              <div class="space-y-1">
-                <div class="flex items-center justify-between text-xs">
-                  <div class="flex items-center gap-2 min-w-0">
-                    <span
-                      class={`w-2 h-2 rounded-full shrink-0 ${
-                        idx() === 0 ? 'bg-orange-500' : 'bg-violet-600'
-                      }`}
-                    />
-                    <span class="font-display font-bold text-slate-800 dark:text-slate-200 truncate">
-                      {item.name}
-                    </span>
-                    <Show when={item.scientificName}>
-                      <span class="font-data text-[10px] text-slate-400 italic hidden sm:inline">
-                        ({item.scientificName})
-                      </span>
-                    </Show>
-                  </div>
-
-                  <div class="flex items-center gap-2 shrink-0">
-                    <span class="font-data text-[10px] text-slate-400">
-                      {item.count} Kasus
-                    </span>
-                    <span
-                      class={`font-display text-[11px] font-black px-1.5 py-0.5 rounded ${
-                        idx() === 0
-                          ? 'bg-orange-100 text-orange-700 dark:bg-orange-950/60 dark:text-orange-300'
-                          : 'bg-purple-100 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300'
-                      }`}
-                    >
-                      {item.percentage}%
-                    </span>
-                  </div>
-                </div>
-
-                {/* Visual Bar Proportion */}
-                <div class="w-full h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
-                  <div
-                    class={`h-full rounded-full transition-all duration-500 ${
-                      idx() === 0 ? 'bg-orange-500' : 'bg-violet-600'
-                    }`}
-                    style={{ width: `${Math.min(item.percentage || 0, 100)}%` }}
-                  />
-                </div>
-              </div>
-            )}
-          </For>
-        </div>
-      </Card>
-
-      {/* =========================================================================
-          5. KONDISI PETAK & RIWAYAT PENGAMATAN LAHAN
-          Rangkuman kondisi riil seluruh lahan garapan petani
-      ========================================================================= */}
-      <div id="riwayat-section" class="space-y-3 pt-1">
-        <div class="flex items-center justify-between">
-          <div class="flex items-center gap-2">
-            <Leaf size={18} weight="duotone" class="text-violet-600 dark:text-purple-400" />
-            <h2 class="font-display text-xs font-black text-slate-800 dark:text-slate-100 tracking-wider">
-              KONDISI PETAK LAHAN
-            </h2>
-          </div>
-
-          <Show when={auth.isSuperAdmin()}>
-            <button
-              type="button"
-              onClick={exportCsv}
-              title="Ekspor Rekapitulasi CSV"
-              class="p-1.5 rounded-lg text-violet-700 dark:text-purple-300 hover:text-violet-900 bg-violet-50 dark:bg-purple-950/50 hover:bg-violet-100 dark:hover:bg-purple-900/50 transition-colors"
-            >
-              <FileArrowDown size={16} weight="bold" />
-            </button>
-          </Show>
-        </div>
-
-        {/* Filter Status Pills */}
-        <div class="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs">
-          {(['SEMUA', 'BAHAYA', 'WASPADA', 'AMAN'] as const).map((st) => (
-            <button
-              type="button"
-              onClick={() => setFilterStatus(st)}
-              class={`font-display text-[11px] font-bold px-3 py-1.5 rounded-xl transition-all whitespace-nowrap ${
-                filterStatus() === st
-                  ? 'bg-slate-900 dark:bg-violet-600 text-white shadow-xs'
-                  : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800'
-              }`}
-            >
-              {st}
-            </button>
-          ))}
-        </div>
-
-        {/* Daftar Kartu Riwayat Lahan */}
-        <div class="space-y-2">
-          <For
-            each={filteredObservations()}
-            fallback={
-              <div class="p-8 text-center bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800">
-                <Info size={28} weight="duotone" class="mx-auto text-slate-300 dark:text-slate-600 mb-2" />
-                <p class="font-data text-xs text-slate-400">Tidak ada data observasi</p>
-              </div>
-            }
-          >
-            {(obs) => (
-              <div
-                onClick={() => setSelectedObs(obs)}
-                class="p-3.5 bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 hover:border-violet-300 dark:hover:border-violet-500 shadow-xs hover:shadow-md transition-all cursor-pointer space-y-2.5"
-              >
-                <div class="flex items-center justify-between">
-                  <div class="space-y-0.5">
-                    <div class="flex items-center gap-1.5">
-                      <span class="font-display font-bold text-xs text-slate-900 dark:text-slate-100">
-                        {obs.petak || 'Petak Tanpa Nama'} · {obs.komoditas}
-                      </span>
-                      <span class="font-data text-[10px] text-slate-400">
-                        ({obs.fase})
-                      </span>
-                    </div>
-                    <div class="flex items-center gap-2">
-                      <span class="font-display text-xs font-semibold text-slate-700 dark:text-slate-300">
-                        {obs.opt_nama}
-                      </span>
-                      <span class="font-data text-[10px] text-slate-400">
-                        Sampel: {obs.total_terserang}/{obs.total_sampel}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div class="flex items-center gap-2.5">
-                    <div class="text-right">
-                      <div class="font-display font-black text-sm text-slate-900 dark:text-slate-100">
-                        {obs.intensitas_persen}%
-                      </div>
-                      <span
-                        class={`font-display text-[9px] font-black px-1.5 py-0.5 rounded uppercase ${
-                          obs.status_bahaya === 'BAHAYA'
-                            ? 'bg-orange-100 dark:bg-orange-950/60 text-orange-700 dark:text-orange-400'
-                            : obs.status_bahaya === 'WASPADA'
-                            ? 'bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-400'
-                            : 'bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300'
-                        }`}
-                      >
-                        {obs.status_bahaya}
-                      </span>
-                    </div>
-                    <CaretRight size={16} weight="bold" class="text-slate-300 dark:text-slate-600" />
-                  </div>
-                </div>
-
-                {/* Visual Bar Tingkat Kerusakan Lahan */}
-                <div class="relative w-full h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
-                  <div
-                    class={`h-full rounded-full transition-all duration-300 ${
-                      obs.status_bahaya === 'BAHAYA'
-                        ? 'bg-orange-600'
-                        : obs.status_bahaya === 'WASPADA'
-                        ? 'bg-amber-500'
-                        : 'bg-purple-600'
-                    }`}
-                    style={{ width: `${Math.min(obs.intensitas_persen, 100)}%` }}
-                  />
-                </div>
-              </div>
-            )}
-          </For>
-        </div>
-      </div>
-
-      {/* =========================================================================
-          6. TOMBOL NAVIGASI CEPAT MENCOLOK DI AKHIR HALAMAN
-          Menunjang kepraktisan petani di lapangan untuk langsung memulai observasi baru
-      ========================================================================= */}
-      <div class="pt-2 pb-4">
-        <button
-          type="button"
-          onClick={() => navigate('/observasi')}
-          class="w-full group p-4 rounded-2xl bg-gradient-to-r from-orange-500 via-orange-600 to-amber-600 hover:from-orange-600 hover:to-amber-700 active:translate-y-0.5 text-white shadow-xl shadow-orange-600/20 transition-all flex items-center justify-between border border-orange-400/40 relative overflow-hidden"
-        >
-          {/* Subtle background glow circle */}
-          <div class="absolute -right-6 -bottom-6 w-28 h-28 bg-white/10 rounded-full blur-xl pointer-events-none group-hover:scale-110 transition-transform duration-300" />
-
-          <div class="flex items-center gap-3.5 relative z-10">
-            <div class="w-12 h-12 rounded-xl bg-white/20 backdrop-blur-xs flex items-center justify-center shrink-0 shadow-inner group-hover:rotate-6 transition-transform">
-              <Camera size={26} weight="fill" class="text-white" />
-            </div>
-            <div class="text-left space-y-0.5">
-              <span class="font-display text-sm font-black tracking-wide block uppercase text-white drop-shadow-xs">
-                Mulai Observasi Lahan Baru
-              </span>
-              <span class="font-data text-[11px] text-orange-100 font-medium block">
-                Ambil foto OPT & hitung ambang serangan petak
-              </span>
-            </div>
-          </div>
-
-          <div class="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center shrink-0 group-hover:translate-x-1 transition-transform relative z-10">
-            <ArrowRight size={18} weight="bold" class="text-white" />
-          </div>
-        </button>
-      </div>
-
-      {/* =========================================================================
-          7. ARK UI DIALOG MODAL: DETAIL DIAGNOSTIK & REKOMENDASI PHT
+          DIALOG MODAL 1: DETAIL DIAGNOSTIK & REKOMENDASI PHT
       ========================================================================= */}
       <DialogModal
         open={!!selectedObs()}
@@ -662,7 +1184,6 @@ export default function Dashboard() {
         <Show when={selectedObs()}>
           {(item) => (
             <div class="space-y-4">
-              {/* Telemetri Hasil Kalkulasi Lapangan */}
               <div class="grid grid-cols-3 gap-2 p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/80 border border-slate-100 dark:border-slate-700/80 text-center">
                 <div>
                   <span class="font-display text-[10px] font-bold text-slate-400">TOTAL SAMPEL</span>
@@ -684,7 +1205,6 @@ export default function Dashboard() {
                 </div>
               </div>
 
-              {/* Status Evaluasi Ambang Ekonomi */}
               <div
                 class={`p-3 rounded-2xl flex items-center justify-between ${
                   item().status_bahaya === 'BAHAYA'
@@ -708,7 +1228,6 @@ export default function Dashboard() {
                 </span>
               </div>
 
-              {/* Taksonomi & Identifikasi Spesies */}
               <div class="space-y-1.5 p-3 rounded-2xl bg-white dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700/80 shadow-xs">
                 <span class="font-display text-[10px] font-bold text-slate-400 tracking-wider">
                   IDENTIFIKASI OPT TERDETEKSI
@@ -721,7 +1240,6 @@ export default function Dashboard() {
                 </div>
               </div>
 
-              {/* Panduan Rekomendasi Tindakan PHT */}
               <div class="space-y-2 p-3.5 rounded-2xl bg-violet-50 dark:bg-purple-950/50 border border-violet-100 dark:border-purple-900/60">
                 <span class="font-display text-[10px] font-black text-violet-900 dark:text-purple-200 tracking-wider">
                   PANDUAN TINDAKAN PHT
@@ -743,6 +1261,20 @@ export default function Dashboard() {
           )}
         </Show>
       </DialogModal>
+
+      {/* =========================================================================
+          DIALOG MODAL 2: CETAK DOKUMEN REKAPITULASI FISIK (PRINT & EXPORT)
+      ========================================================================= */}
+      <PrintReportModal
+        open={printModalOpen()}
+        onClose={() => setPrintModalOpen(false)}
+        observations={observasiList()}
+        totalUsers={adminMacro()?.totalUsers ?? 4}
+        totalPetak={adminMacro()?.totalPetak ?? 3}
+        avgAiConfidence={adminMacro()?.avgAiConfidence ?? 94.0}
+        unconfiguredCount={adminMacro()?.unconfiguredOptCount ?? 0}
+        onExportCsv={exportCsv}
+      />
     </div>
   );
 }

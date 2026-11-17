@@ -9,7 +9,8 @@ use crate::{
     db::get_conn,
     handlers::auth::AppState,
     models::{
-        CreateObservasiPayload, DashboardStatsResponse, ObservasiItem, OptStat, TrendPoint,
+        AdminMacroStats, CreateObservasiPayload, DashboardStatsResponse, ObservasiItem, OptStat,
+        TrendPoint,
     },
 };
 
@@ -345,5 +346,87 @@ pub async fn dashboard_stats_handler(
         trend.push(TrendPoint { label, intensity: rounded });
     }
 
-    Ok(Json(DashboardStatsResponse { trend, opt_ranking }))
+    // 3. Metrik Akumulasi Global & Audit Data Master untuk Superadmin
+    let mut total_users: i64 = 0;
+    if let Ok(mut r) = conn.query("SELECT COUNT(*) FROM users", ()).await {
+        if let Ok(Some(row)) = r.next().await {
+            total_users = row.get(0).unwrap_or(0);
+        }
+    }
+
+    let mut total_petak: i64 = 0;
+    if let Ok(mut r) = conn
+        .query(
+            "SELECT COUNT(DISTINCT catatan_lapangan) FROM observasi WHERE catatan_lapangan != ''",
+            (),
+        )
+        .await
+    {
+        if let Ok(Some(row)) = r.next().await {
+            total_petak = row.get(0).unwrap_or(0);
+        }
+    }
+
+    let mut total_observasi: i64 = 0;
+    if let Ok(mut r) = conn.query("SELECT COUNT(*) FROM observasi", ()).await {
+        if let Ok(Some(row)) = r.next().await {
+            total_observasi = row.get(0).unwrap_or(0);
+        }
+    }
+
+    let mut avg_ai_confidence: f64 = 0.0;
+    let mut total_ai_detections: i64 = 0;
+    if let Ok(mut r) = conn
+        .query(
+            "SELECT AVG(ai_confidence), COUNT(*) FROM observasi WHERE ai_confidence > 0",
+            (),
+        )
+        .await
+    {
+        if let Ok(Some(row)) = r.next().await {
+            avg_ai_confidence = row.get::<f64>(0).unwrap_or(0.0);
+            total_ai_detections = row.get::<i64>(1).unwrap_or(0);
+        }
+    }
+    avg_ai_confidence = (avg_ai_confidence * 1000.0).round() / 10.0; // Persentase misal 94.0
+
+    // Deteksi OPT lapangan yang belum dikonfigurasi di tabel ambang_ekonomi
+    let unconfigured_sql = r#"
+        SELECT DISTINCT o.ai_nama_opt
+        FROM observasi o
+        WHERE o.ai_nama_opt != ''
+          AND o.ai_nama_opt NOT IN (
+            SELECT DISTINCT ok.nama_opt
+            FROM ambang_ekonomi ae
+            JOIN opt_katalog ok ON ae.opt_id = ok.id
+          )
+    "#;
+
+    let mut unconfigured_opt_list = Vec::new();
+    if let Ok(mut r) = conn.query(unconfigured_sql, ()).await {
+        while let Ok(Some(row)) = r.next().await {
+            if let Ok(name) = row.get::<String>(0) {
+                if !name.trim().is_empty() {
+                    unconfigured_opt_list.push(name);
+                }
+            }
+        }
+    }
+    let unconfigured_opt_count = unconfigured_opt_list.len() as i64;
+
+    let admin_macro = Some(AdminMacroStats {
+        total_users,
+        total_petak,
+        total_observasi,
+        avg_ai_confidence,
+        total_ai_detections,
+        unconfigured_opt_count,
+        unconfigured_opt_list,
+    });
+
+    Ok(Json(DashboardStatsResponse {
+        trend,
+        opt_ranking,
+        admin_macro,
+    }))
 }

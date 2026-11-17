@@ -55,9 +55,23 @@ pub struct OptStat {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct AdminMacroStats {
+    pub total_users: i64,
+    pub total_petak: i64,
+    pub total_observasi: i64,
+    pub avg_ai_confidence: f64,
+    pub total_ai_detections: i64,
+    pub unconfigured_opt_count: i64,
+    pub unconfigured_opt_list: Vec<String>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct DashboardStatsResponse {
     pub trend: Vec<TrendPoint>,
     pub opt_ranking: Vec<OptStat>,
+    #[serde(default)]
+    pub admin_macro: Option<AdminMacroStats>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
