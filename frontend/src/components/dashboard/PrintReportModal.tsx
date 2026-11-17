@@ -41,8 +41,8 @@ export function PrintReportModal(props: PrintReportModalProps) {
       onOpenChange={(isOpen) => {
         if (!isOpen) props.onClose();
       }}
-      title="Dokumen Rekapitulasi Fisik"
-      description="Laporan Resmi Pengawasan PHT & Sebaran Organisme Pengganggu Wilayah"
+      title="Rekapitulasi PHT"
+      description="Laporan Wilayah"
     >
       <div class="space-y-4">
         {/* Preview Lembar Dokumen Fisik (Print-ready container) */}
@@ -51,11 +51,8 @@ export function PrintReportModal(props: PrintReportModalProps) {
           <div class="border-b-2 border-slate-900 pb-2 flex items-center justify-between">
             <div>
               <h1 class="font-display text-sm font-black tracking-wider uppercase text-slate-900">
-                SIGAP-OPT: REKAPITULASI PENGAWASAN PHT REGIONAL
+                SIGAP-OPT: REKAPITULASI PHT
               </h1>
-              <p class="text-[10px] text-slate-600">
-                Sistem Terpadu Identifikasi AI & Pemantauan Ambang Ekonomi Lapangan
-              </p>
             </div>
             <div class="text-right text-[10px] text-slate-500 font-mono">
               <div>Tanggal: {printDate}</div>
@@ -171,7 +168,7 @@ export function PrintReportModal(props: PrintReportModalProps) {
             class="shadow-brand-orange"
           >
             <Printer size={18} weight="bold" />
-            <span>Cetak Dokumen Fisik</span>
+            <span>Cetak</span>
           </Button>
 
           <Button

@@ -156,31 +156,25 @@ export function GeospatialOutbreakMap(props: GeospatialOutbreakMapProps) {
 
         {/* Kontur Visual Area Wilayah Sawah */}
         <div class="absolute inset-0 pointer-events-none">
-          <div class="absolute top-6 left-6 text-[10px] font-display font-black text-slate-500 uppercase tracking-widest flex items-center gap-1.5">
+          <div class="absolute top-4 left-4 text-[10px] font-display font-black text-slate-500 uppercase tracking-widest flex items-center gap-1.5">
             <Compass size={14} weight="bold" class="text-violet-400" />
-            <span>Sektor Geospasial Regional</span>
+            <span>Peta Wilayah</span>
           </div>
 
-          <div class="absolute top-6 right-6 flex items-center gap-2">
+          <div class="absolute top-4 right-4 flex items-center gap-2">
             <button
               type="button"
               onClick={() => setFilterHotspotsOnly(!filterHotspotsOnly())}
-              class={`px-2 py-1 rounded-lg text-[10px] font-display font-black uppercase transition-all flex items-center gap-1 border ${
+              class={`px-2 py-1 rounded-lg text-[10px] font-display font-bold uppercase transition-all flex items-center gap-1 border pointer-events-auto ${
                 filterHotspotsOnly()
                   ? 'bg-orange-600 text-white border-orange-500 shadow-xs'
                   : 'bg-slate-800/90 text-slate-300 border-slate-700 hover:bg-slate-700'
               }`}
             >
               <WarningCircle size={12} weight="fill" class={filterHotspotsOnly() ? 'text-white' : 'text-orange-400'} />
-              <span>{filterHotspotsOnly() ? 'Hotspot Bahaya' : 'Semua Titik'}</span>
+              <span>{filterHotspotsOnly() ? 'Bahaya' : 'Semua'}</span>
             </button>
           </div>
-
-          {/* Label Kuadran Regional */}
-          <span class="absolute top-12 left-8 text-[9px] font-mono text-slate-600">SEKTOR-BARAT-UTARA</span>
-          <span class="absolute top-12 right-8 text-[9px] font-mono text-slate-600">SEKTOR-TIMUR-UTARA</span>
-          <span class="absolute bottom-6 left-8 text-[9px] font-mono text-slate-600">SEKTOR-BARAT-SELATAN</span>
-          <span class="absolute bottom-6 right-8 text-[9px] font-mono text-slate-600">SEKTOR-TIMUR-SELATAN</span>
         </div>
 
         {/* Garis Vektor Koridor Penyebaran Ledakan Hama (Outbreak Vectors) */}
@@ -332,7 +326,7 @@ export function GeospatialOutbreakMap(props: GeospatialOutbreakMapProps) {
                   </span>
                 </div>
                 <div class="font-display text-[11px] font-bold text-slate-600 dark:text-slate-300 truncate">
-                  {pt().pestName} · Kerusakan {pt().intensity}%
+                  {pt().pestName} · {pt().intensity}%
                 </div>
               </div>
             </div>
