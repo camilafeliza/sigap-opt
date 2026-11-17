@@ -76,6 +76,7 @@ const OPT_KATALOG_LIST = [
   { nama: 'Lalat Buah', ilmiah: 'Bactrocera dorsalis', kategori: 'Hama', organ: 'Buah' },
   { nama: 'Bercak Ungu Bawang', ilmiah: 'Alternaria porri', kategori: 'Penyakit', organ: 'Daun' },
   { nama: 'Ulat Grayak Jagung (FAW)', ilmiah: 'Spodoptera frugiperda', kategori: 'Hama', organ: 'Titik Tumbuh' },
+  { nama: 'Walang Sangit', ilmiah: 'Leptocorisa acuta', kategori: 'Hama', organ: 'Bulir Gabah Muda' },
 ];
 
 export default function Observasi() {
@@ -244,16 +245,8 @@ export default function Observasi() {
     });
     if (optAnyPhase) return optAnyPhase;
 
-    // 3. Prioritas Ketiga: Komoditas + Fase
-    const komFase = list.find((a) => {
-      const aKom = (a.komoditas || '').toLowerCase();
-      const matchKom = aKom.includes(k) || k.includes(aKom);
-      const matchFase = a.fase === 'Semua Fase' || a.fase === f;
-      return matchKom && matchFase;
-    });
-    if (komFase) return komFase;
-
-    return list[0];
+    // Jika OPT spesifik belum terdaftar di master data, kembalikan null (anti-surrogate pest matching)
+    return null;
   });
 
   const thresholdWaspada = createMemo(() => activeAmbang()?.nilai_waspada_persen ?? 5.0);
@@ -307,7 +300,7 @@ export default function Observasi() {
       return amb.rekomendasi_aman;
     }
     if (s === 'BAHAYA') {
-      return 'Prioritas 1: Pengendalian fisik mekanis intensif. Prioritas 2: Pengaturan tata air & sanitasi lahan. Prioritas 3: Pelepasan musuh alami masif. Darurat: Aplikasi insektisida kimia selektif sesuai ambang kendali.';
+      return 'Prioritas 1: Pengendalian fisik mekanis intensif. Prioritas 2: Pengaturan tata air & sanitasi lahan. Prioritas 3: Pelepasan musuh alami masif. Darurat: Konsultasikan dengan Petugas POPT / PPL setempat untuk pemilihan bahan aktif kimiawi terdaftar yang tepat.';
     }
     if (s === 'WASPADA') {
       return 'Prioritas 1: Pemasangan perangkap likat kuning / feromon. Prioritas 2: Pengeringan berkala petakan sawah. Prioritas 3: Aplikasi biopestisida nabati / agens hayati Beauveria bassiana.';

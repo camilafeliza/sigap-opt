@@ -81,7 +81,8 @@ INSERT OR IGNORE INTO opt_katalog (id, nama_opt, nama_ilmiah, kategori, deskrips
 ('opt-02', 'Penggerek Batang Padi', 'Scirpophaga incertulas', 'Hama', 'Larva menggerek batang menyebabkan sundep pada fase vegetatif dan beluk pada fase generatif.'),
 ('opt-03', 'Blas Daun', 'Pyricularia oryzae', 'Penyakit', 'Cendawan penyebab bercak belah ketupat pada daun dan busuk leher malai padi.'),
 ('opt-04', 'Ulat Grayak', 'Spodoptera litura', 'Hama', 'Ulat pemakan daun rakus pada tanaman hortikultura dan palawija.'),
-('opt-05', 'Kutu Daun (Aphids)', 'Aphis gossypii', 'Hama', 'Pengisap cairan daun muda dan pucuk, menyebabkan daun mengeriting dan berembun jelaga.');
+('opt-05', 'Kutu Daun (Aphids)', 'Aphis gossypii', 'Hama', 'Pengisap cairan daun muda dan pucuk, menyebabkan daun mengeriting dan berembun jelaga.'),
+('opt-06', 'Walang Sangit', 'Leptocorisa acuta', 'Hama', 'Hama pengisap cairan bulir padi muda pada fase masak susu yang menyebabkan gabah hampa atau berbintik coklat/hitam.');
 
 INSERT OR IGNORE INTO ambang_ekonomi (id, komoditas_id, opt_id, fase_pertumbuhan, nilai_waspada_persen, nilai_ambang_ekonomi_persen, satuan, rekomendasi_aman, rekomendasi_waspada, rekomendasi_bahaya) VALUES
 ('amb-01', 'kom-01', 'opt-01', 'Vegetatif', 5.0, 10.0, '%',
@@ -95,4 +96,12 @@ INSERT OR IGNORE INTO ambang_ekonomi (id, komoditas_id, opt_id, fase_pertumbuhan
 ('amb-03', 'kom-04', 'opt-04', 'Vegetatif', 5.0, 10.0, '%',
  'Sanitasi gulma inang dan rotasi tanaman non-inang.',
  'Pemasangan perangkap feromonoid seks dan aplikasi biopestisida ekstrak nimba (azadirachtin).',
- 'Aplikasi insektisida selektif emamektin benzoat atau klorantraniliprol sesuai ambang.');
+ 'Aplikasi insektisida selektif emamektin benzoat atau klorantraniliprol sesuai ambang.'),
+('amb-04', 'kom-01', 'opt-06', 'Generatif', 5.0, 10.0, '%',
+ 'Sanitasi gulma inang rumput teki/jajagoan di pematang dan monitoring populasi berkala saat fase masak susu.',
+ 'Pemasangan perangkap bangkai kepiting/keong mas di pematang dan aplikasi agens hayati Beauveria bassiana.',
+ 'Intervensi darurat: Insektisida kontak selektif berbahan aktif BPMC/Fenobukarb atau Deltametrin diaplikasikan pagi hari tepat sasaran.'),
+('amb-05', 'kom-01', 'opt-06', 'Semua Fase', 5.0, 10.0, '%',
+ 'Sanitasi gulma inang rumput teki/jajagoan di pematang dan monitoring populasi berkala.',
+ 'Pemasangan perangkap bangkai kepiting/keong mas di pematang dan aplikasi agens hayati Beauveria bassiana.',
+ 'Intervensi darurat: Insektisida kontak selektif berbahan aktif BPMC/Fenobukarb atau Deltametrin diaplikasikan pagi hari tepat sasaran.');

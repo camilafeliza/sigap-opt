@@ -144,44 +144,12 @@ pub async fn create_observasi_handler(
         }
     }
 
-    // Query 2 Fallback: Jika OPT spesifik belum terdaftar, cari berdasarkan Komoditas + Fase
-    if ambang_res.is_none() {
-        let q2 = conn
-            .query(
-                r#"
-                SELECT a.nilai_waspada_persen, a.nilai_ambang_ekonomi_persen,
-                       a.rekomendasi_aman, a.rekomendasi_waspada, a.rekomendasi_bahaya
-                FROM ambang_ekonomi a
-                JOIN komoditas k ON a.komoditas_id = k.id
-                WHERE (LOWER(k.nama) = LOWER(?1) OR ?1 LIKE '%' || k.nama || '%' OR k.nama LIKE '%' || ?1 || '%')
-                  AND (a.fase_pertumbuhan = ?2 OR a.fase_pertumbuhan = 'Semua Fase')
-                ORDER BY CASE WHEN a.fase_pertumbuhan = ?2 THEN 1 ELSE 2 END
-                LIMIT 1
-                "#,
-                [kom_clean, fase.as_str()],
-            )
-            .await
-            .ok();
-
-        if let Some(mut rows) = q2 {
-            if let Ok(Some(row)) = rows.next().await {
-                ambang_res = Some((
-                    row.get::<f64>(0).unwrap_or(5.0),
-                    row.get::<f64>(1).unwrap_or(10.0),
-                    row.get::<String>(2).unwrap_or_default(),
-                    row.get::<String>(3).unwrap_or_default(),
-                    row.get::<String>(4).unwrap_or_default(),
-                ));
-            }
-        }
-    }
-
     let (waspada, ambang, rek_aman, rek_waspada, rek_bahaya) = ambang_res.unwrap_or((
         5.0,
         10.0,
-        "Pemantauan berkala dan pelestarian agens hayati.".to_string(),
-        "Pengeringan sawah berselang dan agens hayati.".to_string(),
-        "Intervensi darurat: Insektisida kimia selektif.".to_string(),
+        "Prioritas 1: Pemantauan rutin mingguan, sanitasi lahan, dan pelestarian agens hayati musuh alami.".to_string(),
+        "Prioritas 2: Pengendalian fisik-mekanis, sanitasi gulma inang, dan aplikasi biopestisida ramah lingkungan.".to_string(),
+        "Intervensi darurat: Terapkan pembersihan fisik intensif dan konsultasikan dengan Petugas POPT / PPL setempat untuk rekomendasi bahan aktif darurat terdaftar.".to_string(),
     ));
 
     let (status, rekomendasi) = if intensitas >= ambang {
