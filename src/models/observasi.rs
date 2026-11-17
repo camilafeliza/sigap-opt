@@ -49,6 +49,8 @@ pub struct OptStat {
     pub name: String,
     pub count: i64,
     pub scientific_name: String,
+    #[serde(default)]
+    pub percentage: f64,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

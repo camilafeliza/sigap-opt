@@ -15,6 +15,7 @@ export interface OptStat {
   name: string;
   count: number;
   scientificName: string;
+  percentage?: number;
 }
 
 interface OptDistributionChartProps {
@@ -68,7 +69,12 @@ export function OptDistributionChart(props: OptDistributionChartProps) {
             padding: 8,
             cornerRadius: 8,
             callbacks: {
-              label: (context) => ` ${context.parsed.x} Kasus`,
+              label: (context) => {
+                const count = context.parsed.x;
+                const total = props.data.reduce((acc, cur) => acc + cur.count, 0);
+                const pct = total > 0 ? ((count / total) * 100).toFixed(0) : '0';
+                return ` ${count} Kasus (${pct}%)`;
+              },
             },
           },
         },

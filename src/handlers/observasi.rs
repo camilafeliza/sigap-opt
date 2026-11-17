@@ -296,9 +296,21 @@ pub async fn dashboard_stats_handler(
                 name,
                 count,
                 scientific_name: scientific,
+                percentage: 0.0,
             });
         }
     }
+
+    let total_cases: i64 = opt_ranking.iter().map(|o| o.count).sum();
+    let opt_ranking: Vec<OptStat> = opt_ranking
+        .into_iter()
+        .map(|mut o| {
+            if total_cases > 0 {
+                o.percentage = ((o.count as f64 / total_cases as f64) * 1000.0).round() / 10.0;
+            }
+            o
+        })
+        .collect();
 
     // 2. Tren intensitas riil 7 hari terakhir berdasarkan data observasi riil
     let now = chrono::Utc::now();
