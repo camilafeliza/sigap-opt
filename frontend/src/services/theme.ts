@@ -1,27 +1,56 @@
 import { createSignal, createEffect } from 'solid-js';
+import { useAuth } from './auth';
 
 export type ThemeMode = 'light' | 'dark';
 
-const THEME_KEY = 'sigap_opt_theme';
+export function getUserStorageKey(baseKey: string, userId?: string | null): string {
+  if (userId) {
+    return `sigap_user_${userId}_${baseKey}`;
+  }
+  return `sigap_guest_${baseKey}`;
+}
 
-function getInitialTheme(): ThemeMode {
-  const saved = localStorage.getItem(THEME_KEY);
+const auth = useAuth();
+
+function getThemeForUser(userId?: string | null): ThemeMode {
+  // Check user-scoped key first
+  const userKey = getUserStorageKey('theme', userId);
+  const saved = localStorage.getItem(userKey);
   if (saved === 'dark' || saved === 'light') return saved;
+
+  // Clean legacy unscoped key if present
+  try {
+    localStorage.removeItem('sigap_opt_theme');
+  } catch (_) {}
+
+  // Default to OS preference
   return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
 }
 
-const [currentTheme, setCurrentTheme] = createSignal<ThemeMode>(getInitialTheme());
+const [currentTheme, setCurrentTheme] = createSignal<ThemeMode>(
+  getThemeForUser(auth.currentUser()?.id)
+);
 
-// Sync DOM class on theme change
-createEffect(() => {
-  const t = currentTheme();
+function applyThemeToDom(mode: ThemeMode) {
+  if (typeof document === 'undefined') return;
   const root = document.documentElement;
-  if (t === 'dark') {
+  if (mode === 'dark') {
     root.classList.add('dark');
   } else {
     root.classList.remove('dark');
   }
-  localStorage.setItem(THEME_KEY, t);
+}
+
+// Initial application
+applyThemeToDom(currentTheme());
+
+// Re-sync and isolate theme whenever active user session changes
+createEffect(() => {
+  const user = auth.currentUser();
+  const userId = user?.id;
+  const targetTheme = getThemeForUser(userId);
+  setCurrentTheme(targetTheme);
+  applyThemeToDom(targetTheme);
 });
 
 export function useTheme() {
@@ -29,10 +58,14 @@ export function useTheme() {
 
   const setTheme = (mode: ThemeMode) => {
     setCurrentTheme(mode);
+    applyThemeToDom(mode);
+    const userId = auth.currentUser()?.id;
+    localStorage.setItem(getUserStorageKey('theme', userId), mode);
   };
 
   const toggleTheme = () => {
-    setCurrentTheme((prev) => (prev === 'dark' ? 'light' : 'dark'));
+    const nextMode: ThemeMode = currentTheme() === 'dark' ? 'light' : 'dark';
+    setTheme(nextMode);
   };
 
   return {

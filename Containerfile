@@ -11,12 +11,12 @@ FROM docker.io/library/rust:alpine AS backend-builder
 RUN apk add --no-cache musl-dev gcc g++ make
 WORKDIR /app
 COPY Cargo.toml Cargo.lock ./
+ENV RUSTFLAGS="-C target-feature=-crt-static"
 # Pre-build dependency crates using dummy main.rs for layer caching
 RUN mkdir src && echo "fn main() {}" > src/main.rs && cargo build --release && rm -rf src
 COPY migrations/ ./migrations/
 COPY src/ ./src/
 COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
-ENV RUSTFLAGS="-C target-feature=-crt-static"
 RUN touch src/main.rs && cargo build --release
 
 # Stage 3: Minimal Distroless / Alpine Runtime

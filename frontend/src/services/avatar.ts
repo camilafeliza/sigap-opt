@@ -1,4 +1,4 @@
-import { createSignal, createMemo } from 'solid-js';
+import { createSignal, createMemo, createEffect } from 'solid-js';
 import { createAvatar } from '@dicebear/core';
 import {
   bottts,
@@ -8,6 +8,7 @@ import {
   bigSmile,
   toonHead,
 } from '@dicebear/collection';
+import { useAuth } from './auth';
 
 export const CARTOON_3D_STYLES = [
   { id: 'bottts', name: 'Robot 3D', style: bottts },
@@ -20,23 +21,59 @@ export const CARTOON_3D_STYLES = [
 
 export type CartoonStyleId = (typeof CARTOON_3D_STYLES)[number]['id'];
 
-const SEED_STORAGE_KEY = 'sigap_avatar_seed';
-const STYLE_STORAGE_KEY = 'sigap_avatar_style';
+export function getUserAvatarKey(baseKey: string, userId?: string | null): string {
+  if (userId) {
+    return `sigap_user_${userId}_avatar_${baseKey}`;
+  }
+  return `sigap_guest_avatar_${baseKey}`;
+}
 
-function getInitialSeed(): string {
-  const saved = localStorage.getItem(SEED_STORAGE_KEY);
+const auth = useAuth();
+
+function getInitialUserSeed(userId?: string | null, username?: string): string {
+  const key = getUserAvatarKey('seed', userId);
+  const saved = localStorage.getItem(key);
   if (saved && saved.trim()) return saved;
-  return 'sigap_' + Math.random().toString(36).substring(2, 8);
+  // Deterministic seed based on username or role
+  if (username) return `sigap_${username}`;
+  return 'sigap_guest';
 }
 
-function getInitialStyle(): CartoonStyleId {
-  const saved = localStorage.getItem(STYLE_STORAGE_KEY) as CartoonStyleId;
+function getInitialUserStyle(userId?: string | null, role?: string): CartoonStyleId {
+  const key = getUserAvatarKey('style', userId);
+  const saved = localStorage.getItem(key) as CartoonStyleId;
   const match = CARTOON_3D_STYLES.find((s) => s.id === saved);
-  return match ? match.id : 'bottts';
+  if (match) return match.id;
+  // Superadmin defaults to 'bottts', petani to 'adventurer'
+  return role === 'superadmin' ? 'bottts' : 'adventurer';
 }
 
-const [currentSeed, setCurrentSeed] = createSignal<string>(getInitialSeed());
-const [currentStyle, setCurrentStyle] = createSignal<CartoonStyleId>(getInitialStyle());
+const [currentSeed, setCurrentSeed] = createSignal<string>(
+  getInitialUserSeed(auth.currentUser()?.id, auth.currentUser()?.username)
+);
+const [currentStyle, setCurrentStyle] = createSignal<CartoonStyleId>(
+  getInitialUserStyle(auth.currentUser()?.id, auth.currentUser()?.role)
+);
+
+// Reactive lifecycle: Rehydrate avatar whenever active user session changes
+createEffect(() => {
+  const user = auth.currentUser();
+  const userId = user?.id;
+  const username = user?.username;
+  const role = user?.role;
+
+  // Clean legacy unscoped keys if present
+  try {
+    localStorage.removeItem('sigap_avatar_seed');
+    localStorage.removeItem('sigap_avatar_style');
+  } catch (_) {}
+
+  const seed = getInitialUserSeed(userId, username);
+  const style = getInitialUserStyle(userId, role);
+
+  setCurrentSeed(seed);
+  setCurrentStyle(style);
+});
 
 export function useAvatar() {
   const avatarUri = createMemo(() => {
@@ -45,7 +82,7 @@ export function useAvatar() {
     const seed = currentSeed();
 
     try {
-      const avatar = createAvatar(styleObj.style, {
+      const avatar = createAvatar(styleObj.style as any, {
         seed,
         radius: 50,
       });
@@ -57,27 +94,28 @@ export function useAvatar() {
   });
 
   const randomize = () => {
-    // Generate new random seed
+    const userId = auth.currentUser()?.id;
     const newSeed = 'pht_' + Math.random().toString(36).substring(2, 9);
-    // Pick a random 3D cartoon style from the library
     const randomStyle =
       CARTOON_3D_STYLES[Math.floor(Math.random() * CARTOON_3D_STYLES.length)].id;
 
     setCurrentSeed(newSeed);
     setCurrentStyle(randomStyle);
 
-    localStorage.setItem(SEED_STORAGE_KEY, newSeed);
-    localStorage.setItem(STYLE_STORAGE_KEY, randomStyle);
+    localStorage.setItem(getUserAvatarKey('seed', userId), newSeed);
+    localStorage.setItem(getUserAvatarKey('style', userId), randomStyle);
   };
 
   const setStyle = (styleId: CartoonStyleId) => {
+    const userId = auth.currentUser()?.id;
     setCurrentStyle(styleId);
-    localStorage.setItem(STYLE_STORAGE_KEY, styleId);
+    localStorage.setItem(getUserAvatarKey('style', userId), styleId);
   };
 
   const setSeed = (seed: string) => {
+    const userId = auth.currentUser()?.id;
     setCurrentSeed(seed);
-    localStorage.setItem(SEED_STORAGE_KEY, seed);
+    localStorage.setItem(getUserAvatarKey('seed', userId), seed);
   };
 
   return {
