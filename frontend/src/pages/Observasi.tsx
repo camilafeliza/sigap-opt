@@ -497,10 +497,14 @@ export default function Observasi() {
         setSuccessModalOpen(true);
         loadData();
         toast.success('Data pengamatan berhasil disimpan ke catatan lahan');
+      } else {
+        const errJson = await res.json().catch(() => null);
+        const errMsg = errJson?.message || 'Gagal menyimpan data pengamatan';
+        toast.error(errMsg);
       }
-    } catch {
-      setSuccessModalOpen(true);
-      toast.info('Data tersimpan secara lokal');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Koneksi gagal saat menyimpan observasi';
+      toast.error(msg);
     } finally {
       setIsSaving(false);
     }

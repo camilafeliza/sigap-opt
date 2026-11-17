@@ -66,9 +66,7 @@ CREATE INDEX IF NOT EXISTS idx_ambang_lookup ON ambang_ekonomi(komoditas_id, opt
 -- Seed Data Awal
 INSERT OR IGNORE INTO users (id, username, password_hash, full_name, role) VALUES
 ('usr-admin-01', 'admin', '$argon2id$v=19$m=19456,t=2,p=1$c2lnYXAtb3B0LXNhbHQ$PjQk1L/NfKzQ1aH1Xk0yqJv3q1M', 'Super Administrator', 'superadmin'),
-('usr-petani-01', 'petani', '$argon2id$v=19$m=19456,t=2,p=1$c2lnYXAtb3B0LXNhbHQ$PjQk1L/NfKzQ1aH1Xk0yqJv3q1M', 'Pak Tani Santoso', 'petani'),
-('usr-petani-02', 'budi_padi', '$argon2id$v=19$m=19456,t=2,p=1$c2lnYXAtb3B0LXNhbHQ$PjQk1L/NfKzQ1aH1Xk0yqJv3q1M', 'Budi Raharjo', 'petani'),
-('usr-petani-03', 'siti_horti', '$argon2id$v=19$m=19456,t=2,p=1$c2lnYXAtb3B0LXNhbHQ$PjQk1L/NfKzQ1aH1Xk0yqJv3q1M', 'Siti Aminah', 'petani');
+('usr-petani-01', 'petani', '$argon2id$v=19$m=19456,t=2,p=1$c2lnYXAtb3B0LXNhbHQ$PjQk1L/NfKzQ1aH1Xk0yqJv3q1M', 'Pak Tani Santoso', 'petani');
 
 INSERT OR IGNORE INTO komoditas (id, nama, varietas) VALUES
 ('kom-01', 'Padi', 'Ciherang, Inpari 32, Situ Bagendit'),

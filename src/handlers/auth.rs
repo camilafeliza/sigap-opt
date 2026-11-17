@@ -55,8 +55,6 @@ pub async fn login_handler(
             // Kredensial akun role resmi sistem
             (uname == "admin" && input_pwd == "admin123")
                 || (uname == "petani" && input_pwd == "petani123")
-                || (uname == "budi_padi" && input_pwd == "petani123")
-                || (uname == "siti_horti" && input_pwd == "petani123")
         };
 
         if !is_valid {

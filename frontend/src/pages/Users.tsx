@@ -97,22 +97,12 @@ export default function Users() {
         setPassword('');
         toast.success(`Pengguna "${fullName() || username()}" berhasil ditambahkan`);
       } else {
-        toast.error('Gagal menambahkan pengguna');
+        const errJson = await res.json().catch(() => null);
+        const errMsg = errJson?.message || 'Gagal menambahkan pengguna';
+        toast.error(errMsg);
       }
     } catch {
-      // Local fallback
-      setUsersList((prev) => [
-        ...prev,
-        {
-          id: `usr-${Date.now()}`,
-          full_name: fullName(),
-          username: username(),
-          role: role(),
-          created_at: new Date().toISOString(),
-        },
-      ]);
-      setCreateModalOpen(false);
-      toast.info('Pengguna disimpan secara lokal');
+      toast.error('Terjadi kesalahan jaringan saat menambahkan pengguna');
     } finally {
       setIsSubmitting(false);
     }
