@@ -6,6 +6,7 @@ import { Card } from '../components/ui/Card';
 import { DialogModal } from '../components/ui/Dialog';
 import { CameraModal } from '../components/ui/CameraModal';
 import { CustomSelect } from '../components/ui/Select';
+import { toast } from '../services/toast';
 import {
   Camera as CameraIcon,
   Sparkle as SparkleIcon,
@@ -420,6 +421,7 @@ export default function Observasi() {
         if (data.komoditas) {
           applyAiKomoditas(data.komoditas, data.varietas);
         }
+        toast.info(`OPT Terdeteksi: ${data.nama_opt} (${(data.confidence_score * 100).toFixed(0)}%)`);
       } else {
         const errJson = await res.json().catch(() => null);
         const errMsg = errJson?.message || 'Identifikasi AI tidak berhasil mengenali OPT dari citra';
@@ -429,6 +431,7 @@ export default function Observasi() {
       const msg = err instanceof Error ? err.message : 'Gagal memproses visual AI';
       setAiError(msg);
       setAiResult(null);
+      toast.error(msg);
     } finally {
       setIsAnalyzing(false);
     }
@@ -510,9 +513,11 @@ export default function Observasi() {
       if (res.ok) {
         setSuccessModalOpen(true);
         loadData();
+        toast.success('Data pengamatan berhasil disimpan ke catatan lahan');
       }
     } catch {
       setSuccessModalOpen(true);
+      toast.info('Data tersimpan secara lokal');
     } finally {
       setIsSaving(false);
     }

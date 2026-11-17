@@ -3,6 +3,7 @@ import { useNavigate } from '@solidjs/router';
 import { useAuth } from '../services/auth';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
+import { toast } from '../services/toast';
 import {
   User as UserIcon,
   LockKey as LockIcon,
@@ -37,13 +38,12 @@ export default function Login() {
     setLoading(true);
     try {
       await auth.login(u, p);
+      toast.success('Berhasil masuk ke sistem');
       navigate('/dashboard', { replace: true });
     } catch (err: unknown) {
-      if (err instanceof Error) {
-        setErrorMessage(err.message);
-      } else {
-        setErrorMessage('Gagal masuk');
-      }
+      const msg = err instanceof Error ? err.message : 'Gagal masuk';
+      setErrorMessage(msg);
+      toast.error(msg);
     } finally {
       setLoading(false);
     }

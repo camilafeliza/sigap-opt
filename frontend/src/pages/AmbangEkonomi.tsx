@@ -4,7 +4,9 @@ import { Navigate } from '@solidjs/router';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import { DialogModal } from '../components/ui/Dialog';
+import { ConfirmDialog } from '../components/ui/ConfirmDialog';
 import { CustomSelect } from '../components/ui/Select';
+import { toast } from '../services/toast';
 import {
   SlidersHorizontal as SlidersIcon,
   Plus as PlusIcon,
@@ -55,6 +57,7 @@ export default function AmbangEkonomi() {
   const [filterKomoditas, setFilterKomoditas] = createSignal<string>('SEMUA');
   const [createModalOpen, setCreateModalOpen] = createSignal(false);
   const [selectedAmbang, setSelectedAmbang] = createSignal<AmbangItem | null>(null);
+  const [deleteTarget, setDeleteTarget] = createSignal<{ id: string; name: string } | null>(null);
   const [isDeleting, setIsDeleting] = createSignal(false);
 
   // Form State: Variabel Identitas Konteks Wajib
@@ -143,19 +146,24 @@ export default function AmbangEkonomi() {
         await fetchAmbang();
         setCreateModalOpen(false);
         setOptNama('');
+        toast.success('Parameter ambang ekonomi berhasil disimpan');
+      } else {
+        toast.error('Gagal menambahkan parameter ambang');
       }
     } catch {
+      toast.error('Terjadi kesalahan jaringan saat menyimpan parameter');
       setCreateModalOpen(false);
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const handleDeleteAmbang = async (id: string) => {
-    if (!confirm('Hapus parameter ambang ekonomi ini?')) return;
+  const confirmDeleteAmbang = async () => {
+    const target = deleteTarget();
+    if (!target) return;
     setIsDeleting(true);
     try {
-      const res = await fetch(`/api/ambang-ekonomi/${id}`, {
+      const res = await fetch(`/api/ambang-ekonomi/${target.id}`, {
         method: 'DELETE',
         headers: {
           ...(auth.token() ? { Authorization: `Bearer ${auth.token()}` } : {}),
@@ -163,8 +171,14 @@ export default function AmbangEkonomi() {
       });
       if (res.ok) {
         setSelectedAmbang(null);
+        setDeleteTarget(null);
         await fetchAmbang();
+        toast.success(`Parameter "${target.name}" berhasil dihapus`);
+      } else {
+        toast.error('Gagal menghapus parameter ambang');
       }
+    } catch {
+      toast.error('Terjadi kesalahan jaringan saat menghapus parameter');
     } finally {
       setIsDeleting(false);
     }
@@ -354,7 +368,7 @@ export default function AmbangEkonomi() {
               <div class="pt-2 flex items-center gap-2">
                 <button
                   type="button"
-                  onClick={() => handleDeleteAmbang(item().id)}
+                  onClick={() => setDeleteTarget({ id: item().id, name: item().opt })}
                   disabled={isDeleting()}
                   class="px-4 py-2.5 rounded-xl border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 font-display font-bold text-xs flex items-center gap-1.5 transition-colors cursor-pointer"
                   title="Hapus Parameter Ini"
@@ -411,10 +425,7 @@ export default function AmbangEkonomi() {
               <input
                 type="text"
                 value={optNama()}
-                onInput={(e) => {
-                  setOptNama(e.currentTarget.value);
-                  updateRecommendations(komoditas(), e.currentTarget.value);
-                }}
+                onInput={(e) => setOptNama(e.currentTarget.value)}
                 placeholder="Contoh: Wereng Batang Coklat"
                 class="font-data w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-800 dark:text-slate-100 focus:outline-none focus:border-violet-600 shadow-xs"
                 required
@@ -592,6 +603,21 @@ export default function AmbangEkonomi() {
           </div>
         </form>
       </DialogModal>
+
+      {/* Confirmation Modal for Ambang Deletion */}
+      <ConfirmDialog
+        open={deleteTarget() !== null}
+        onOpenChange={(open) => {
+          if (!open) setDeleteTarget(null);
+        }}
+        title="Hapus Parameter Ambang"
+        description={`Apakah Anda yakin ingin menghapus parameter ambang ekonomi untuk "${deleteTarget()?.name}"? Tindakan ini tidak dapat dibatalkan.`}
+        confirmText="Hapus"
+        cancelText="Batal"
+        variant="danger"
+        loading={isDeleting()}
+        onConfirm={confirmDeleteAmbang}
+      />
     </div>
   );
 }

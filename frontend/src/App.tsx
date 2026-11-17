@@ -3,6 +3,7 @@ import { Router, Route, Navigate } from '@solidjs/router';
 import { useAuth } from './services/auth';
 import { Header } from './components/layout/Header';
 import { BottomNav } from './components/layout/BottomNav';
+import { ToastContainer } from './components/ui/Toast';
 
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
@@ -20,6 +21,7 @@ const Layout: Component<any> = (props) => {
           {props.children}
         </main>
         <BottomNav />
+        <ToastContainer />
       </div>
     </div>
   );

@@ -1,7 +1,7 @@
 import { JSX, splitProps } from 'solid-js';
 
 export interface ButtonProps extends JSX.ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: 'primary' | 'secondary' | 'outline' | 'ghost';
+  variant?: 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger';
   size?: 'sm' | 'md' | 'lg';
   fullWidth?: boolean;
   loading?: boolean;
@@ -32,6 +32,8 @@ export function Button(props: ButtonProps) {
       'border-2 border-slate-200 dark:border-slate-700 hover:border-violet-600 dark:hover:border-violet-400 hover:text-violet-600 dark:hover:text-violet-400 text-slate-700 dark:text-slate-200 bg-transparent focus:ring-violet-400',
     ghost:
       'text-slate-600 dark:text-slate-300 hover:text-violet-600 dark:hover:text-violet-400 hover:bg-violet-50 dark:hover:bg-violet-950/40 bg-transparent focus:ring-violet-400',
+    danger:
+      'bg-rose-600 hover:bg-rose-700 active:bg-rose-800 text-white shadow-lg shadow-rose-600/25 focus:ring-rose-400',
   };
 
   const sizes = {

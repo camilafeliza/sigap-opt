@@ -4,7 +4,9 @@ import { Navigate } from '@solidjs/router';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import { DialogModal } from '../components/ui/Dialog';
+import { ConfirmDialog } from '../components/ui/ConfirmDialog';
 import { CustomSelect } from '../components/ui/Select';
+import { toast } from '../services/toast';
 import {
   Users as UsersIcon,
   UserPlus as UserPlusIcon,
@@ -33,6 +35,8 @@ export default function Users() {
   const [usersList, setUsersList] = createSignal<UserItem[]>([]);
   const [searchQuery, setSearchQuery] = createSignal('');
   const [createModalOpen, setCreateModalOpen] = createSignal(false);
+  const [deleteTarget, setDeleteTarget] = createSignal<{ id: string; name: string } | null>(null);
+  const [isDeleting, setIsDeleting] = createSignal(false);
   const [loading, setLoading] = createSignal(true);
 
   // Form State
@@ -91,6 +95,9 @@ export default function Users() {
         setFullName('');
         setUsername('');
         setPassword('');
+        toast.success(`Pengguna "${fullName() || username()}" berhasil ditambahkan`);
+      } else {
+        toast.error('Gagal menambahkan pengguna');
       }
     } catch {
       // Local fallback
@@ -105,16 +112,30 @@ export default function Users() {
         },
       ]);
       setCreateModalOpen(false);
+      toast.info('Pengguna disimpan secara lokal');
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const handleDeleteUser = async (id: string) => {
+  const confirmDeleteUser = async () => {
+    const target = deleteTarget();
+    if (!target) return;
+    setIsDeleting(true);
     try {
-      await fetch(`/api/users/${id}`, { method: 'DELETE' });
-    } catch (_) {}
-    setUsersList((prev) => prev.filter((u) => u.id !== id));
+      const res = await fetch(`/api/users/${target.id}`, { method: 'DELETE' });
+      if (res.ok) {
+        setUsersList((prev) => prev.filter((u) => u.id !== target.id));
+        setDeleteTarget(null);
+        toast.success(`Pengguna "${target.name}" berhasil dihapus`);
+      } else {
+        toast.error('Gagal menghapus pengguna');
+      }
+    } catch {
+      toast.error('Terjadi kesalahan jaringan saat menghapus pengguna');
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   return (
@@ -208,7 +229,7 @@ export default function Users() {
                 <Show when={user.username !== 'admin'}>
                   <button
                     type="button"
-                    onClick={() => handleDeleteUser(user.id)}
+                    onClick={() => setDeleteTarget({ id: user.id, name: user.full_name || user.username })}
                     title="Hapus Pengguna"
                     class="p-1.5 rounded-lg text-slate-300 dark:text-slate-600 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors"
                   >
@@ -295,6 +316,21 @@ export default function Users() {
           </div>
         </form>
       </DialogModal>
+
+      {/* Confirmation Modal for User Deletion */}
+      <ConfirmDialog
+        open={deleteTarget() !== null}
+        onOpenChange={(open) => {
+          if (!open) setDeleteTarget(null);
+        }}
+        title="Hapus Akun Pengguna"
+        description={`Apakah Anda yakin ingin menghapus akun "${deleteTarget()?.name}"? Tindakan ini tidak dapat dibatalkan.`}
+        confirmText="Hapus"
+        cancelText="Batal"
+        variant="danger"
+        loading={isDeleting()}
+        onConfirm={confirmDeleteUser}
+      />
     </div>
   );
 }

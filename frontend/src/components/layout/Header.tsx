@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from '@solidjs/router';
 import { useAuth } from '../../services/auth';
 import { useTheme } from '../../services/theme';
 import { useAvatar, CARTOON_3D_STYLES } from '../../services/avatar';
+import { toast } from '../../services/toast';
 import { DialogModal } from '../ui/Dialog';
 import { Avatar } from '../ui/Avatar';
 import {
@@ -27,6 +28,7 @@ export function Header() {
   const handleLogout = () => {
     auth.logout();
     setSettingsOpen(false);
+    toast.info('Sesi Anda telah berakhir');
     navigate('/login', { replace: true });
   };
 
