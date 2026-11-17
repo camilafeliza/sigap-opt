@@ -80,9 +80,27 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         .layer(CorsLayer::permissive())
         .with_state(state);
 
-    let bind_addr = format!("{}:{}", config.host, config.port);
-    let listener = tokio::net::TcpListener::bind(&bind_addr).await?;
-    tracing::info!("✅ sigap-opt server listening on http://{}", bind_addr);
+    let listener = if config.host == "0.0.0.0" || config.host == "::" || config.host.is_empty() {
+        match tokio::net::TcpListener::bind(format!("[::]:{}", config.port)).await {
+            Ok(l) => {
+                tracing::info!("✅ sigap-opt server listening on dual-stack [::]:{}", config.port);
+                l
+            }
+            Err(e) => {
+                tracing::warn!("Failed to bind dual-stack [::]:{}, falling back to IPv4 0.0.0.0:{}: {}", config.port, config.port, e);
+                let v4_addr = format!("0.0.0.0:{}", config.port);
+                tokio::net::TcpListener::bind(&v4_addr).await?
+            }
+        }
+    } else {
+        let bind_addr = if config.host.contains(':') && !config.host.starts_with('[') {
+            format!("[{}]:{}", config.host, config.port)
+        } else {
+            format!("{}:{}", config.host, config.port)
+        };
+        tracing::info!("✅ sigap-opt server listening on http://{}", bind_addr);
+        tokio::net::TcpListener::bind(&bind_addr).await?
+    };
 
     axum::serve(listener, app).await?;
 
@@ -132,5 +150,20 @@ mod tests {
         assert_eq!(eval(8.5), "WASPADA");
         assert_eq!(eval(10.0), "BAHAYA");
         assert_eq!(eval(15.2), "BAHAYA");
+    }
+
+    #[tokio::test]
+    async fn test_dual_stack_binding() {
+        let listener = tokio::net::TcpListener::bind("[::]:0").await;
+        if let Ok(l) = listener {
+            let local_addr = l.local_addr().unwrap();
+            let port = local_addr.port();
+            // Test connecting with IPv4 127.0.0.1
+            let v4_conn = tokio::net::TcpStream::connect(format!("127.0.0.1:{}", port)).await;
+            assert!(v4_conn.is_ok(), "IPv4 connection should succeed on dual-stack");
+            // Test connecting with IPv6 ::1
+            let v6_conn = tokio::net::TcpStream::connect(format!("[::1]:{}", port)).await;
+            assert!(v6_conn.is_ok(), "IPv6 connection should succeed on dual-stack");
+        }
     }
 }

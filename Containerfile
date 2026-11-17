@@ -25,6 +25,6 @@ RUN apk add --no-cache ca-certificates tzdata libgcc libstdc++
 WORKDIR /app
 COPY --from=backend-builder /app/target/release/sigap-opt /app/sigap-opt
 VOLUME /app/data
-ENV DATABASE_URL="file:/app/data/sigap_opt.db" PORT=8080 APP_HOST="0.0.0.0" GEMINI_API_KEY="your-gemini-api-key-here"
+ENV DATABASE_URL="file:/app/data/sigap_opt.db" PORT=8080 APP_HOST="::" GEMINI_API_KEY="your-gemini-api-key-here"
 EXPOSE 8080
 ENTRYPOINT ["/app/sigap-opt"]
