@@ -106,15 +106,9 @@ pub async fn ai_identify_handler(
         }
     }
 
-    // 2. Fallback agronomi cerdas jika API key belum dipasang atau jaringan offline
-    Ok(Json(AiIdentifyResponse {
-        nama_opt: "Wereng Batang Coklat".to_string(),
-        nama_ilmiah: "Nilaparvata lugens".to_string(),
-        kategori: "Hama".to_string(),
-        bagian_terserang: "Batang".to_string(),
-        confidence_score: 0.94,
-        gejala_khas: "Batang tanaman mengering dan berwarna kecokelatan (hopperburn) pada rumpun padi.".to_string(),
-        komoditas: Some("Padi".to_string()),
-        varietas: Some("Ciherang".to_string()),
-    }))
+    // 2. Jika analisis AI gagal atau tidak dapat diparse, jangan berhalusinasi atau memberikan data dummy
+    Err((
+        StatusCode::BAD_GATEWAY,
+        "Identifikasi AI tidak berhasil mengenali OPT dari citra tersebut. Silakan ambil foto ulang yang lebih fokus atau pilih jenis OPT secara manual dari katalog.".to_string(),
+    ))
 }

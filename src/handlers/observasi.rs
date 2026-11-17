@@ -24,9 +24,9 @@ pub async fn list_observasi_handler(
             o.id,
             k.nama as komoditas,
             COALESCE(k.varietas, '') as varietas,
-            COALESCE(o.catatan_lapangan, 'Petak A1') as petak,
+            COALESCE(o.catatan_lapangan, '') as petak,
             o.fase_pertumbuhan as fase,
-            COALESCE(o.ai_nama_opt, COALESCE(op.nama_opt, 'Wereng Batang Coklat')) as opt_nama,
+            COALESCE(o.ai_nama_opt, COALESCE(op.nama_opt, '')) as opt_nama,
             op.nama_ilmiah,
             op.kategori,
             o.ai_confidence,
@@ -91,11 +91,11 @@ pub async fn create_observasi_handler(
 
     let id = format!("obs-{}", uuid::Uuid::new_v4());
     let komoditas_nama = payload.komoditas.unwrap_or_else(|| "Padi".to_string());
-    let varietas = payload.varietas.unwrap_or_else(|| "Ciherang".to_string());
-    let petak = payload.petak.unwrap_or_else(|| "Petak A1".to_string());
+    let varietas = payload.varietas.unwrap_or_default();
+    let petak = payload.petak.unwrap_or_default();
     let fase = payload.fase.unwrap_or_else(|| "Vegetatif".to_string());
-    let opt_nama = payload.opt_nama.unwrap_or_else(|| "Wereng Batang Coklat".to_string());
-    let nama_ilmiah = payload.nama_ilmiah.unwrap_or_else(|| "Nilaparvata lugens".to_string());
+    let opt_nama = payload.opt_nama.unwrap_or_default();
+    let nama_ilmiah = payload.nama_ilmiah.unwrap_or_default();
 
     let n = payload.total_terserang.unwrap_or(0);
     let cap_n = payload.total_sampel.unwrap_or(50).max(1);
@@ -248,9 +248,9 @@ pub async fn create_observasi_handler(
             user_id.as_str(),
             komoditas_id.as_str(),
             fase.as_str(),
-            "/uploads/pht_sample.jpg",
+            payload.foto_path.as_deref().unwrap_or(""),
             opt_nama.as_str(),
-            0.94,
+            payload.ai_confidence.unwrap_or(0.0),
             "{}",
             cap_n,
             n,
@@ -271,9 +271,9 @@ pub async fn create_observasi_handler(
         petak,
         fase,
         opt_nama,
-        nama_ilmiah: Some(nama_ilmiah),
+        nama_ilmiah: if nama_ilmiah.is_empty() { None } else { Some(nama_ilmiah) },
         kategori: Some("Hama".to_string()),
-        ai_confidence: Some(0.94),
+        ai_confidence: payload.ai_confidence,
         total_sampel: cap_n,
         total_terserang: n,
         intensitas_persen: intensitas,
@@ -291,66 +291,79 @@ pub async fn dashboard_stats_handler(
     let conn = get_conn(&state.db)
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 
-    // Agregasi kasus OPT terbanyak langsung dari LibSQL
+    // 1. Agregasi kasus OPT riil langsung dari LibSQL
     let opt_sql = r#"
-        SELECT COALESCE(ai_nama_opt, 'Wereng Batang Coklat') as name, COUNT(*) as cnt
-        FROM observasi
+        SELECT 
+            COALESCE(o.ai_nama_opt, COALESCE(op.nama_opt, '')) as name,
+            COALESCE(op.nama_ilmiah, '') as scientific,
+            COUNT(*) as cnt
+        FROM observasi o
+        LEFT JOIN opt_katalog op ON o.opt_id = op.id
+        WHERE name != ''
         GROUP BY name
         ORDER BY cnt DESC
-        LIMIT 4
+        LIMIT 5
     "#;
 
     let mut opt_ranking = Vec::new();
     if let Ok(mut rows) = conn.query(opt_sql, ()).await {
         while let Ok(Some(row)) = rows.next().await {
             let name: String = row.get(0).unwrap_or_default();
-            let count: i64 = row.get(1).unwrap_or(0);
-            opt_ranking.push(OptStat {
-                name: name.clone(),
-                count,
-                scientific_name: if name.contains("Wereng") {
+            let mut scientific: String = row.get(1).unwrap_or_default();
+            let count: i64 = row.get(2).unwrap_or(0);
+            if scientific.is_empty() {
+                scientific = if name.contains("Wereng") {
                     "Nilaparvata lugens".to_string()
                 } else if name.contains("Penggerek") {
                     "Scirpophaga incertulas".to_string()
                 } else if name.contains("Blas") {
                     "Pyricularia oryzae".to_string()
-                } else {
+                } else if name.contains("Ulat Grayak") {
                     "Spodoptera litura".to_string()
-                },
+                } else {
+                    String::new()
+                };
+            }
+            opt_ranking.push(OptStat {
+                name,
+                count,
+                scientific_name: scientific,
             });
         }
     }
 
-    if opt_ranking.is_empty() {
-        opt_ranking = vec![
-            OptStat {
-                name: "Wereng Batang Coklat".to_string(),
-                count: 18,
-                scientific_name: "Nilaparvata lugens".to_string(),
-            },
-            OptStat {
-                name: "Penggerek Batang Padi".to_string(),
-                count: 9,
-                scientific_name: "Scirpophaga incertulas".to_string(),
-            },
-            OptStat {
-                name: "Blas Daun".to_string(),
-                count: 5,
-                scientific_name: "Pyricularia oryzae".to_string(),
-            },
-        ];
+    // 2. Tren intensitas riil 7 hari terakhir berdasarkan data observasi riil
+    let now = chrono::Utc::now();
+    let mut trend = Vec::new();
+    let days_label = ["Min", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab"];
+
+    let trend_sql = r#"
+        SELECT 
+            strftime('%Y-%m-%d', created_at) as obs_date,
+            AVG(intensitas_serangan_persen) as avg_intensity
+        FROM observasi
+        WHERE created_at >= datetime('now', '-7 days')
+        GROUP BY obs_date
+    "#;
+
+    let mut date_map = std::collections::HashMap::new();
+    if let Ok(mut rows) = conn.query(trend_sql, ()).await {
+        while let Ok(Some(row)) = rows.next().await {
+            if let (Ok(d), Ok(val)) = (row.get::<String>(0), row.get::<f64>(1)) {
+                date_map.insert(d, val);
+            }
+        }
     }
 
-    // Tren 7 hari terakhir
-    let trend = vec![
-        TrendPoint { label: "Sen".to_string(), intensity: 2.5 },
-        TrendPoint { label: "Sel".to_string(), intensity: 3.8 },
-        TrendPoint { label: "Rab".to_string(), intensity: 4.2 },
-        TrendPoint { label: "Kam".to_string(), intensity: 5.5 },
-        TrendPoint { label: "Jum".to_string(), intensity: 7.9 },
-        TrendPoint { label: "Sab".to_string(), intensity: 11.4 },
-        TrendPoint { label: "Min".to_string(), intensity: 6.8 },
-    ];
+    for i in (0..7).rev() {
+        let target_date = now - chrono::Duration::days(i);
+        let date_str = target_date.format("%Y-%m-%d").to_string();
+        let weekday_num = target_date.format("%w").to_string().parse::<usize>().unwrap_or(0);
+        let label = days_label[weekday_num % 7].to_string();
+        let intensity = date_map.get(&date_str).copied().unwrap_or(0.0);
+        let rounded = (intensity * 10.0).round() / 10.0;
+        trend.push(TrendPoint { label, intensity: rounded });
+    }
 
     Ok(Json(DashboardStatsResponse { trend, opt_ranking }))
 }

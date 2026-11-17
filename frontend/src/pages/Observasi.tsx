@@ -91,12 +91,13 @@ export default function Observasi() {
   ]);
   const [komoditas, setKomoditas] = createSignal('Padi');
   const [varietas, setVarietas] = createSignal('Ciherang');
-  const [petak, setPetak] = createSignal('Petak A1');
+  const [petak, setPetak] = createSignal('');
   const [fase, setFase] = createSignal<'Vegetatif' | 'Generatif'>('Vegetatif');
 
   // Status Otomatis AI vs Edit Manual (Solusi Halusinasi AI)
   const [isKomoditasAutoFilled, setIsKomoditasAutoFilled] = createSignal(false);
   const [isVarietasAutoFilled, setIsVarietasAutoFilled] = createSignal(false);
+  const [aiError, setAiError] = createSignal<string | null>(null);
 
   // Form Step 2: Pemotretan & Analisis AI
   let mobileCameraInputRef: HTMLInputElement | undefined;
@@ -410,6 +411,7 @@ export default function Observasi() {
     if (!imgData) return;
 
     setIsAnalyzing(true);
+    setAiError(null);
     try {
       const res = await fetch('/api/ai/identify', {
         method: 'POST',
@@ -426,48 +428,14 @@ export default function Observasi() {
           applyAiKomoditas(data.komoditas, data.varietas);
         }
       } else {
-        throw new Error('Gagal memproses visual');
+        const errJson = await res.json().catch(() => null);
+        const errMsg = errJson?.message || 'Identifikasi AI tidak berhasil mengenali OPT dari citra';
+        throw new Error(errMsg);
       }
-    } catch {
-      // Fallback cerdas berbasis komoditas
-      const k = komoditas();
-      let fallbackData: AiDetectionResult;
-      if (k === 'Cabai') {
-        fallbackData = {
-          nama_opt: 'Kutu Daun (Aphids)',
-          nama_ilmiah: 'Aphis gossypii',
-          kategori: 'Hama',
-          confidence_score: 0.92,
-          gejala_khas: 'Daun pucuk menggulung, pertumbuhan terhambat, dan terdapat embun jelaga.',
-          bagian_terserang: 'Pucuk Daun',
-          komoditas: 'Cabai',
-          varietas: 'TM 99',
-        };
-      } else if (k === 'Bawang Merah') {
-        fallbackData = {
-          nama_opt: 'Ulat Grayak',
-          nama_ilmiah: 'Spodoptera litura',
-          kategori: 'Hama',
-          confidence_score: 0.89,
-          gejala_khas: 'Daun berlubang menerawang atau sobek akibat gerekan ulat stadium awal.',
-          bagian_terserang: 'Daun',
-          komoditas: 'Bawang Merah',
-          varietas: 'Bima Brebes',
-        };
-      } else {
-        fallbackData = {
-          nama_opt: 'Wereng Batang Coklat',
-          nama_ilmiah: 'Nilaparvata lugens',
-          kategori: 'Hama',
-          confidence_score: 0.94,
-          gejala_khas: 'Bagian pangkal batang menghitam dan tanaman mengering mirip terbakar (hopperburn).',
-          bagian_terserang: 'Pangkal Batang',
-          komoditas: 'Padi',
-          varietas: 'Ciherang',
-        };
-      }
-      setAiResult(fallbackData);
-      applyAiKomoditas(fallbackData.komoditas, fallbackData.varietas);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Gagal memproses visual AI';
+      setAiError(msg);
+      setAiResult(null);
     } finally {
       setIsAnalyzing(false);
     }
@@ -890,6 +858,21 @@ export default function Observasi() {
                   <span class="text-xs font-display font-bold text-purple-900 dark:text-purple-200">
                     Menganalisis...
                   </span>
+                </div>
+              </Show>
+
+              {/* Peringatan Jika AI Gagal */}
+              <Show when={aiError() && !isAnalyzing()}>
+                <div class="p-3 rounded-xl bg-orange-50 dark:bg-orange-950/40 border border-orange-200 dark:border-orange-900/60 flex items-start gap-2.5 shadow-xs">
+                  <WarningIcon size={18} weight="fill" class="shrink-0 text-orange-500 mt-0.5" />
+                  <div class="space-y-1">
+                    <p class="font-display font-bold text-xs text-orange-900 dark:text-orange-200">
+                      {aiError()}
+                    </p>
+                    <p class="font-data text-[11px] text-orange-700 dark:text-orange-300">
+                      Pilih nama OPT dari katalog baku di bawah untuk melanjutkan.
+                    </p>
+                  </div>
                 </div>
               </Show>
 

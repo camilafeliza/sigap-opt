@@ -87,45 +87,7 @@ export default function AmbangEkonomi() {
         setAmbangList(data);
       }
     } catch {
-      // Fallback lokal
-      setAmbangList([
-        {
-          id: 'amb-01',
-          komoditas: 'Padi',
-          opt: 'Wereng Batang Coklat',
-          fase: 'Vegetatif',
-          nilai_waspada_persen: 5.0,
-          nilai_ambang_ekonomi_persen: 10.0,
-          satuan: '%',
-          rekomendasi_aman: 'Pemantauan rutin dan pelestarian musuh alami laba-laba serigala.',
-          rekomendasi_waspada: 'Pengeringan sawah berselang dan agens hayati Beauveria bassiana.',
-          rekomendasi_bahaya: 'Aplikasi insektisida kimia selektif pimetrozin/buprofezin tepat sasaran.',
-        },
-        {
-          id: 'amb-02',
-          komoditas: 'Padi',
-          opt: 'Penggerek Batang Padi',
-          fase: 'Vegetatif',
-          nilai_waspada_persen: 3.0,
-          nilai_ambang_ekonomi_persen: 6.0,
-          satuan: '%',
-          rekomendasi_aman: 'Sanitasi jerami dan pengamatan kelompok telur.',
-          rekomendasi_waspada: 'Pelepasan parasitoid telur Trichogramma japonicum.',
-          rekomendasi_bahaya: 'Insektisida sistemik granula pada perakaran.',
-        },
-        {
-          id: 'amb-03',
-          komoditas: 'Cabai',
-          opt: 'Kutu Daun (Aphids)',
-          fase: 'Semua Fase',
-          nilai_waspada_persen: 5.0,
-          nilai_ambang_ekonomi_persen: 10.0,
-          satuan: '%',
-          rekomendasi_aman: 'Pelestarian musuh alami kumbang kubah Coccinellidae.',
-          rekomendasi_waspada: 'Pemasangan perangkap likat kuning dan semprotan air bertekanan.',
-          rekomendasi_bahaya: 'Aplikasi insektisida kimia selektif berbahan aktif abamektin.',
-        },
-      ]);
+      setAmbangList([]);
     } finally {
       setLoading(false);
     }

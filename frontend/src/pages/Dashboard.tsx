@@ -69,21 +69,8 @@ export default function Dashboard() {
         setOptRanking(stats.optRanking);
       }
     } catch {
-      // Fallback data
-      setTrendData([
-        { label: 'Sen', intensity: 2.5 },
-        { label: 'Sel', intensity: 3.8 },
-        { label: 'Rab', intensity: 4.2 },
-        { label: 'Kam', intensity: 5.5 },
-        { label: 'Jum', intensity: 7.9 },
-        { label: 'Sab', intensity: 11.4 },
-        { label: 'Min', intensity: 6.8 },
-      ]);
-      setOptRanking([
-        { name: 'Wereng Batang Coklat', count: 18, scientificName: 'Nilaparvata lugens' },
-        { name: 'Penggerek Batang Padi', count: 9, scientificName: 'Scirpophaga incertulas' },
-        { name: 'Blas Daun', count: 5, scientificName: 'Pyricularia oryzae' },
-      ]);
+      setTrendData([]);
+      setOptRanking([]);
     } finally {
       setLoading(false);
     }

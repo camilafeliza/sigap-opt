@@ -52,8 +52,11 @@ pub async fn login_handler(
         let is_valid = if let Ok(valid) = bcrypt::verify(&input_pwd, &_pwd_hash) {
             valid
         } else {
-            // Testing / default pass check (e.g. admin123, petani123)
-            input_pwd == "admin123" || input_pwd == "petani123" || _pwd_hash.contains(&input_pwd) || input_pwd.is_empty()
+            // Kredensial akun role resmi sistem
+            (uname == "admin" && input_pwd == "admin123")
+                || (uname == "petani" && input_pwd == "petani123")
+                || (uname == "budi_padi" && input_pwd == "petani123")
+                || (uname == "siti_horti" && input_pwd == "petani123")
         };
 
         if !is_valid {
@@ -73,31 +76,7 @@ pub async fn login_handler(
 
         Ok(Json(AuthResponse { token, user }))
     } else {
-        // Auto-provision demo user jika belum terdaftar
-        let role = if username == "admin" { "superadmin" } else { "petani" };
-        let full_name = if username == "admin" { "Super Administrator" } else { "Petani Lapangan" };
-        let user_id = format!("usr-{}", uuid::Uuid::new_v4());
-        let now = chrono::Utc::now().to_rfc3339();
-
-        let _ = conn
-            .execute(
-                "INSERT INTO users (id, username, password_hash, full_name, role, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-                libsql::params![user_id.as_str(), username, "hash", full_name, role, now.as_str()],
-            )
-            .await;
-
-        let token = create_jwt_token(&state.config.jwt_secret, &user_id, username, role)
-            .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e))?;
-
-        let user = User {
-            id: user_id,
-            username: username.to_string(),
-            full_name: full_name.to_string(),
-            role: role.to_string(),
-            created_at: now,
-        };
-
-        Ok(Json(AuthResponse { token, user }))
+        Err((StatusCode::UNAUTHORIZED, "Nama pengguna atau kata sandi tidak valid".to_string()))
     }
 }
 

@@ -50,12 +50,7 @@ export default function Users() {
         setUsersList(data);
       }
     } catch {
-      // Fallback data
-      setUsersList([
-        { id: 'usr-admin-01', username: 'admin', full_name: 'Super Administrator', role: 'superadmin', created_at: new Date().toISOString() },
-        { id: 'usr-petani-01', username: 'petani', full_name: 'Pak Tani Santoso', role: 'petani', created_at: new Date().toISOString() },
-        { id: 'usr-petani-02', username: 'budi_padi', full_name: 'Budi Raharjo', role: 'petani', created_at: new Date().toISOString() },
-      ]);
+      setUsersList([]);
     } finally {
       setLoading(false);
     }

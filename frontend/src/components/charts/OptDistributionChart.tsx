@@ -1,4 +1,4 @@
-import { onMount, onCleanup, createEffect } from 'solid-js';
+import { onMount, onCleanup, createEffect, Show } from 'solid-js';
 import {
   Chart,
   BarController,
@@ -120,8 +120,14 @@ export function OptDistributionChart(props: OptDistributionChartProps) {
   });
 
   return (
-    <div class="w-full h-36 relative">
-      <canvas ref={canvasRef} />
+    <div class="w-full h-36 relative flex items-center justify-center">
+      <Show when={props.data && props.data.length > 0} fallback={
+        <p class="font-display text-xs font-bold text-slate-400 dark:text-slate-500">
+          Belum ada data serangan OPT
+        </p>
+      }>
+        <canvas ref={canvasRef} />
+      </Show>
     </div>
   );
 }

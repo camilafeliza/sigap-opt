@@ -96,10 +96,3 @@ INSERT OR IGNORE INTO ambang_ekonomi (id, komoditas_id, opt_id, fase_pertumbuhan
  'Sanitasi gulma inang dan rotasi tanaman non-inang.',
  'Pemasangan perangkap feromonoid seks dan aplikasi biopestisida ekstrak nimba (azadirachtin).',
  'Aplikasi insektisida selektif emamektin benzoat atau klorantraniliprol sesuai ambang.');
-
-INSERT OR IGNORE INTO observasi (id, user_id, komoditas_id, opt_id, fase_pertumbuhan, foto_path, ai_nama_opt, ai_confidence, ai_raw_json, total_sampel, total_terserang, intensitas_serangan_persen, status_bahaya, rekomendasi_pht, catatan_lapangan) VALUES
-('obs-01', 'usr-petani-01', 'kom-01', 'opt-01', 'Vegetatif', '/uploads/obs-01.jpg', 'Wereng Batang Coklat', 0.94, '{"nama_opt":"Wereng Batang Coklat"}', 50, 6, 12.0, 'BAHAYA', 'Intervensi darurat: Insektisida kimia selektif berbahan aktif pimetrozin/buprofezin.', 'Petak A1 - Serangan merata di dekat pematang'),
-('obs-02', 'usr-petani-01', 'kom-01', 'opt-02', 'Generatif', '/uploads/obs-02.jpg', 'Penggerek Batang Padi', 0.91, '{"nama_opt":"Penggerek Batang Padi"}', 50, 4, 8.0, 'BAHAYA', 'Pelepasan parasitoid Trichogramma dan pemotongan malai hampa.', 'Petak B2 - Malai mulai hampa'),
-('obs-03', 'usr-petani-02', 'kom-04', 'opt-04', 'Vegetatif', '/uploads/obs-03.jpg', 'Ulat Grayak', 0.88, '{"nama_opt":"Ulat Grayak"}', 40, 2, 5.0, 'WASPADA', 'Pemasangan perangkap feromonoid seks dan aplikasi biopestisida ekstrak mimba.', 'Petak D1 - Daun berlubang kecil'),
-('obs-04', 'usr-petani-01', 'kom-01', 'opt-03', 'Vegetatif', '/uploads/obs-04.jpg', 'Blas Daun', 0.95, '{"nama_opt":"Blas Daun"}', 50, 1, 2.0, 'AMAN', 'Pengurangan pupuk nitrogen berlebih, jaga aerasi air sawah, dan monitoring rutin.', 'Petak A2 - Gejala awal belah ketupat'),
-('obs-05', 'usr-petani-03', 'kom-03', 'opt-05', 'Vegetatif', '/uploads/obs-05.jpg', 'Kutu Daun (Aphids)', 0.89, '{"nama_opt":"Kutu Daun (Aphids)"}', 30, 1, 3.3, 'AMAN', 'Pelestarian musuh alami predator kumbang Coccinellidae dan penyemprotan air sabun lembut.', 'Petak C1 - Terkendali predator');

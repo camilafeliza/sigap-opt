@@ -33,6 +33,8 @@ pub struct CreateObservasiPayload {
     pub status_bahaya: Option<String>,
     pub rekomendasi_pht: Option<String>,
     pub catatan_lapangan: Option<String>,
+    pub foto_path: Option<String>,
+    pub ai_confidence: Option<f64>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
