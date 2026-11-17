@@ -307,7 +307,7 @@ export default function Dashboard() {
                 <div class="space-y-1">
                   <div class="flex items-center gap-2">
                     <span class="font-display font-bold text-xs text-slate-900 dark:text-slate-100">
-                      {obs.petak} &middot; {obs.komoditas}
+                      {obs.petak} · {obs.komoditas}
                     </span>
                     <span class="font-data text-[10px] text-slate-400">
                       ({obs.fase})
@@ -407,7 +407,7 @@ export default function Dashboard() {
                 </span>
                 <div class="font-display text-sm font-black text-slate-800 dark:text-slate-100">{item().opt_nama}</div>
                 <div class="font-data text-xs text-slate-500 dark:text-slate-400 italic">
-                  {item().nama_ilmiah ?? 'Spesies Lapangan'} &middot; Akurasi AI {((item().ai_confidence ?? 0.94) * 100).toFixed(0)}%
+                  {item().nama_ilmiah ?? 'Spesies Lapangan'} · Akurasi AI {((item().ai_confidence ?? 0.94) * 100).toFixed(0)}%
                 </div>
               </div>
 

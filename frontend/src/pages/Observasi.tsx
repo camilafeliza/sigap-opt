@@ -527,18 +527,13 @@ export default function Observasi() {
 
   return (
     <div class="p-4 space-y-4">
-      {/* Top Bar: Icon & Tab Switcher */}
-      <div class="flex items-center justify-between">
-        <div class="w-8 h-8 rounded-xl bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 flex items-center justify-center">
-          <CameraIcon size={20} weight="bold" />
-        </div>
-
-        {/* Tab Switcher: Formulir vs Riwayat */}
-        <div class="flex items-center bg-slate-100 dark:bg-slate-800 p-0.5 rounded-xl border border-slate-200/60 dark:border-slate-700/60">
+      {/* Tab Switcher: Formulir vs Riwayat */}
+      <div class="flex items-center justify-center">
+        <div class="flex items-center bg-slate-100 dark:bg-slate-800 p-1 rounded-xl border border-slate-200/60 dark:border-slate-700/60 w-full">
           <button
             type="button"
             onClick={() => setActiveTab('form')}
-            class={`px-3 py-1 rounded-lg font-display font-bold text-xs transition-all flex items-center gap-1.5 ${
+            class={`flex-1 py-1.5 rounded-lg font-display font-bold text-xs transition-all flex items-center justify-center gap-1.5 ${
               activeTab() === 'form'
                 ? 'bg-white dark:bg-violet-600 text-purple-700 dark:text-white shadow-xs'
                 : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
@@ -550,7 +545,7 @@ export default function Observasi() {
           <button
             type="button"
             onClick={() => setActiveTab('history')}
-            class={`px-3 py-1 rounded-lg font-display font-bold text-xs transition-all flex items-center gap-1.5 ${
+            class={`flex-1 py-1.5 rounded-lg font-display font-bold text-xs transition-all flex items-center justify-center gap-1.5 ${
               activeTab() === 'history'
                 ? 'bg-white dark:bg-violet-600 text-purple-700 dark:text-white shadow-xs'
                 : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
@@ -716,7 +711,7 @@ export default function Observasi() {
           <Card variant="elevated" class="p-4 space-y-3 dark:bg-slate-900 dark:border-slate-800">
             <div class="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
               <div class="flex items-center gap-2">
-                <CameraIcon size={18} class="text-orange-500" weight="bold" />
+                <SparkleIcon size={18} class="text-orange-500" weight="bold" />
                 <span class="font-display font-bold text-xs uppercase tracking-wider text-slate-800 dark:text-slate-200">
                   Visual OPT
                 </span>
@@ -1060,7 +1055,7 @@ export default function Observasi() {
                   </div>
                   <div class="p-2 rounded-xl bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800">
                     <span class="block text-[9px] font-bold text-red-600">Skala 4</span>
-                    <span class="block text-[8px] text-red-500">&gt;75%</span>
+                    <span class="block text-[8px] text-red-500">{'>75%'}</span>
                     <input
                       type="number"
                       min="0"
@@ -1171,7 +1166,7 @@ export default function Observasi() {
 
           <Show when={isLoadingHistory()}>
             <div class="text-center py-8 text-xs font-data text-slate-400">
-              Memuat riwayat pengamatan dari LibSQL...
+              Memuat riwayat pengamatan lahan...
             </div>
           </Show>
 
@@ -1179,7 +1174,7 @@ export default function Observasi() {
             when={!isLoadingHistory() && historyList().length > 0}
             fallback={
               <Card variant="elevated" class="p-8 text-center space-y-2 dark:bg-slate-900 dark:border-slate-800">
-                <CameraIcon size={32} class="mx-auto text-slate-300 dark:text-slate-600" weight="duotone" />
+                <HistoryIcon size={32} class="mx-auto text-slate-300 dark:text-slate-600" weight="duotone" />
                 <p class="font-display font-bold text-xs text-slate-600 dark:text-slate-300">
                   Belum ada observasi yang tercatat
                 </p>
@@ -1205,7 +1200,7 @@ export default function Observasi() {
                         <span class="font-display font-black text-xs text-slate-900 dark:text-slate-100">
                           {obs.petak}
                         </span>
-                        <span class="text-[10px] font-data text-slate-400">&middot;</span>
+                        <span class="text-[10px] font-data text-slate-400">·</span>
                         <span class="text-[10px] font-display font-bold text-slate-500 dark:text-slate-400">
                           {obs.komoditas}
                         </span>
@@ -1312,7 +1307,7 @@ export default function Observasi() {
           }
         }}
         title="Hasil Evaluasi Ambang PHT"
-        description={`${lastResult()?.petak || petak()} &middot; ${lastResult()?.komoditas || komoditas()} (${lastResult()?.fase || fase()})`}
+        description={`${lastResult()?.petak || petak()} · ${lastResult()?.komoditas || komoditas()} (${lastResult()?.fase || fase()})`}
       >
         <Show when={lastResult()}>
           {(res) => (
@@ -1445,11 +1440,11 @@ export default function Observasi() {
                     </p>
                     <ul class="space-y-1 text-[11px] font-data text-purple-900 dark:text-purple-300">
                       <li class="flex items-start gap-1.5">
-                        <span class="text-violet-600 font-bold">&bull;</span>
+                        <span class="text-violet-600 font-bold">•</span>
                         <span><strong>Pemantauan Rutin</strong>: Lanjutkan pengamatan berkala mingguan untuk memantau dinamika populasi.</span>
                       </li>
                       <li class="flex items-start gap-1.5">
-                        <span class="text-violet-600 font-bold">&bull;</span>
+                        <span class="text-violet-600 font-bold">•</span>
                         <span><strong>Pelestarian Musuh Alami</strong>: Lestarikan predator alami seperti laba-laba Lycosa, kumbang kubah, dan parasitoid Trichogramma tanpa aplikasi bahan kimia sintetis.</span>
                       </li>
                     </ul>
@@ -1464,11 +1459,11 @@ export default function Observasi() {
                     </p>
                     <ul class="space-y-1 text-[11px] font-data text-amber-900 dark:text-amber-300">
                       <li class="flex items-start gap-1.5">
-                        <span class="text-amber-600 font-bold">&bull;</span>
+                        <span class="text-amber-600 font-bold">•</span>
                         <span><strong>Sanitasi & Tata Air</strong>: Pengeringan petak sawah berselang (intermittent) dan sanitasi gulma inang.</span>
                       </li>
                       <li class="flex items-start gap-1.5">
-                        <span class="text-amber-600 font-bold">&bull;</span>
+                        <span class="text-amber-600 font-bold">•</span>
                         <span><strong>Perangkap & Agens Hayati</strong>: Pemasangan perangkap likat kuning / feromon dan aplikasi cendawan entomopatogen (Beauveria bassiana) atau biopestisida nabati.</span>
                       </li>
                     </ul>
@@ -1507,7 +1502,7 @@ export default function Observasi() {
               <div class="p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900/60 flex items-center gap-2">
                 <CheckCircleIcon size={20} weight="fill" class="text-emerald-600 shrink-0" />
                 <span class="font-data text-[11px] text-emerald-900 dark:text-emerald-200 leading-snug">
-                  Data pengamatan hari ini telah otomatis disimpan ke basis data LibSQL dan divisualisasikan pada halaman Dasbor.
+                  Data pengamatan hari ini berhasil disimpan ke catatan lahan Anda.
                 </span>
               </div>
 
