@@ -19,7 +19,8 @@ use crate::{
     handlers::{
         ai_identify_handler, create_ambang_handler, create_observasi_handler, create_user_handler,
         dashboard_stats_handler, delete_ambang_handler, delete_user_handler, list_ambang_handler,
-        list_observasi_handler, list_users_handler, login_handler, me_handler, AppState,
+        list_komoditas_handler, list_observasi_handler, list_users_handler, login_handler,
+        me_handler, AppState,
     },
     static_embed::static_handler,
 };
@@ -66,6 +67,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         .route("/users", get(list_users_handler).post(create_user_handler))
         .route("/users/:id", delete(delete_user_handler))
         // Observasi & Ambang Ekonomi PHT
+        .route("/komoditas", get(list_komoditas_handler))
         .route("/observasi", get(list_observasi_handler).post(create_observasi_handler))
         .route("/dashboard/stats", get(dashboard_stats_handler))
         .route("/ambang-ekonomi", get(list_ambang_handler).post(create_ambang_handler))

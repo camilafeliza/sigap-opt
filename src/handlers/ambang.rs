@@ -11,6 +11,29 @@ use crate::{
     models::{AmbangItem, CreateAmbangPayload},
 };
 
+pub async fn list_komoditas_handler(
+    State(state): State<Arc<AppState>>,
+) -> Result<impl IntoResponse, (StatusCode, String)> {
+    let conn = get_conn(&state.db)
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+    let mut rows = conn
+        .query("SELECT id, nama, varietas FROM komoditas ORDER BY nama ASC", ())
+        .await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+    let mut list = Vec::new();
+    while let Some(row) = rows.next().await.map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))? {
+        list.push(serde_json::json!({
+            "id": row.get::<String>(0).unwrap_or_default(),
+            "nama": row.get::<String>(1).unwrap_or_default(),
+            "varietas": row.get::<String>(2).ok(),
+        }));
+    }
+
+    Ok(Json(list))
+}
+
 pub async fn list_ambang_handler(
     State(state): State<Arc<AppState>>,
 ) -> Result<impl IntoResponse, (StatusCode, String)> {

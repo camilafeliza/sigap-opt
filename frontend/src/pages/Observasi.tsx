@@ -141,9 +141,17 @@ export default function Observasi() {
   // Muat Data Master Ambang dan Riwayat Observasi
   const loadData = async () => {
     try {
-      const resAmbang = await fetch('/api/ambang-ekonomi');
+      const [resAmbang, resKom] = await Promise.all([
+        fetch('/api/ambang-ekonomi'),
+        fetch('/api/komoditas'),
+      ]);
       if (resAmbang.ok) {
         setAmbangList(await resAmbang.json());
+      }
+      if (resKom.ok) {
+        const komData: { id: string; nama: string }[] = await resKom.json();
+        const names = komData.map((k) => k.nama);
+        setKomoditasList((prev) => Array.from(new Set([...prev, ...names])));
       }
     } catch (_) {}
 
@@ -291,7 +299,13 @@ export default function Observasi() {
       if (s === 'WASPADA') return amb.rekomendasi_waspada;
       return amb.rekomendasi_aman;
     }
-    return 'Belum ada parameter ambang ekonomi yang dikonfigurasi untuk komoditas dan OPT ini.';
+    if (s === 'BAHAYA') {
+      return 'Intensitas melampaui ambang batas umum (10%). Segera lakukan tindakan mekanis/hayati darurat. Parameter spesifik komoditas ini belum diatur di master data.';
+    }
+    if (s === 'WASPADA') {
+      return 'Intensitas memasuki zona waspada umum (5%-10%). Tingkatkan sanitasi dan pemantauan. Parameter spesifik komoditas ini belum diatur di master data.';
+    }
+    return 'Kondisi tanaman aman (< 5%). Lakukan pemantauan rutin. Parameter spesifik komoditas ini belum diatur di master data.';
   });
 
   // Handler Unggah & Pemotretan Citra
@@ -1048,10 +1062,19 @@ export default function Observasi() {
                   />
                   <div class="bg-orange-600 h-full flex-1" title="Zona Bahaya" />
                 </div>
-                <div class="flex justify-between text-[9px] font-data text-slate-400 px-0.5">
+                <div class="flex justify-between items-center text-[9px] font-data text-slate-400 px-0.5">
                   <span>0% (Aman)</span>
-                  <span>Waspada: {thresholdWaspada()}%</span>
-                  <span>Ambang Ekonomi: {thresholdBahaya()}%</span>
+                  <Show
+                    when={activeAmbang()}
+                    fallback={
+                      <span class="text-amber-600 dark:text-amber-400 font-bold">
+                        Toleransi Umum (5% / 10%)
+                      </span>
+                    }
+                  >
+                    <span>Waspada: {thresholdWaspada()}%</span>
+                  </Show>
+                  <span>Ambang: {thresholdBahaya()}%</span>
                 </div>
               </div>
             </div>

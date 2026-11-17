@@ -148,9 +148,9 @@ pub async fn create_observasi_handler(
     let (waspada, ambang, rek_aman, rek_waspada, rek_bahaya) = ambang_res.unwrap_or((
         5.0,
         10.0,
-        "Belum ada parameter ambang ekonomi yang dikonfigurasi untuk komoditas dan OPT ini.".to_string(),
-        "Belum ada parameter ambang ekonomi yang dikonfigurasi untuk komoditas dan OPT ini.".to_string(),
-        "Belum ada parameter ambang ekonomi yang dikonfigurasi untuk komoditas dan OPT ini.".to_string(),
+        "Kondisi tanaman aman (< 5%). Lakukan pemantauan berkala dan sanitasi lahan. Parameter spesifik belum dikonfigurasi di master data.".to_string(),
+        "Intensitas serangan memasuki status waspada umum (5%-10%). Bersihkan gulma inang dan pasang perangkap. Parameter spesifik belum dikonfigurasi di master data.".to_string(),
+        "Intensitas serangan melewati ambang toleransi umum (10%). Segera lakukan tindakan mekanis/hayati darurat. Parameter spesifik belum dikonfigurasi di master data.".to_string(),
     ));
 
     let (status, rekomendasi) = if intensitas >= ambang {
@@ -186,6 +186,37 @@ pub async fn create_observasi_handler(
         "kom-01".to_string()
     };
 
+    // Ambil atau buat opt_id di opt_katalog jika nama OPT terisi
+    let opt_id = if !opt_nama.trim().is_empty() {
+        let opt_clean = opt_nama.trim();
+        let o_row = conn
+            .query(
+                "SELECT id FROM opt_katalog WHERE LOWER(nama_opt) = LOWER(?1) OR ?1 LIKE '%' || nama_opt || '%' LIMIT 1",
+                [opt_clean],
+            )
+            .await
+            .ok();
+
+        if let Some(mut rows) = o_row {
+            if let Ok(Some(r)) = rows.next().await {
+                r.get::<String>(0).ok()
+            } else {
+                let new_o_id = format!("opt-{}", &uuid::Uuid::new_v4().to_string()[..8]);
+                let _ = conn
+                    .execute(
+                        "INSERT OR IGNORE INTO opt_katalog (id, nama_opt, nama_ilmiah, kategori) VALUES (?1, ?2, ?3, ?4)",
+                        libsql::params![new_o_id.as_str(), opt_clean, nama_ilmiah.as_str(), "Hama"],
+                    )
+                    .await;
+                Some(new_o_id)
+            }
+        } else {
+            None
+        }
+    } else {
+        None
+    };
+
     let user_id = if let Some(uid) = token_user_id {
         uid
     } else {
@@ -206,16 +237,17 @@ pub async fn create_observasi_handler(
     conn.execute(
         r#"
         INSERT INTO observasi (
-            id, user_id, komoditas_id, fase_pertumbuhan, foto_path,
+            id, user_id, komoditas_id, opt_id, fase_pertumbuhan, foto_path,
             ai_nama_opt, ai_confidence, ai_raw_json,
             total_sampel, total_terserang, intensitas_serangan_persen,
             status_bahaya, rekomendasi_pht, catatan_lapangan, created_at
-        ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)
+        ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)
         "#,
         libsql::params![
             id.as_str(),
             user_id.as_str(),
             komoditas_id.as_str(),
+            opt_id.as_deref(),
             fase.as_str(),
             payload.foto_path.as_deref().unwrap_or(""),
             opt_nama.as_str(),

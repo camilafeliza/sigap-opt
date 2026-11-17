@@ -46,6 +46,10 @@ export default function AmbangEkonomi() {
   const [ambangList, setAmbangList] = createSignal<AmbangItem[]>([]);
   const [loading, setLoading] = createSignal(true);
   const [filterKomoditas, setFilterKomoditas] = createSignal<string>('SEMUA');
+  const [komoditasOptions, setKomoditasOptions] = createSignal<string[]>([
+    'Padi', 'Jagung', 'Cabai', 'Bawang Merah', 'Kedelai'
+  ]);
+  const [unconfiguredOpts, setUnconfiguredOpts] = createSignal<string[]>([]);
   const [createModalOpen, setCreateModalOpen] = createSignal(false);
   const [selectedAmbang, setSelectedAmbang] = createSignal<AmbangItem | null>(null);
   const [deleteTarget, setDeleteTarget] = createSignal<{ id: string; name: string } | null>(null);
@@ -53,6 +57,8 @@ export default function AmbangEkonomi() {
 
   // Form State: Variabel Identitas Konteks Wajib
   const [komoditas, setKomoditas] = createSignal('Padi');
+  const [customKomoditas, setCustomKomoditas] = createSignal('');
+  const [isCustomKomoditas, setIsCustomKomoditas] = createSignal(false);
   const [optNama, setOptNama] = createSignal('');
   const [fase, setFase] = createSignal<'Vegetatif' | 'Generatif' | 'Semua Fase'>('Vegetatif');
 
@@ -69,10 +75,25 @@ export default function AmbangEkonomi() {
 
   const fetchAmbang = async () => {
     try {
-      const res = await fetch('/api/ambang-ekonomi');
-      if (res.ok) {
-        const data = await res.json();
+      const [resAmbang, resKom, resStats] = await Promise.all([
+        fetch('/api/ambang-ekonomi'),
+        fetch('/api/komoditas'),
+        fetch('/api/dashboard/stats'),
+      ]);
+      if (resAmbang.ok) {
+        const data = await resAmbang.json();
         setAmbangList(data);
+      }
+      if (resKom.ok) {
+        const komData: { id: string; nama: string }[] = await resKom.json();
+        const names = komData.map((k) => k.nama);
+        setKomoditasOptions((prev) => Array.from(new Set([...prev, ...names])));
+      }
+      if (resStats.ok) {
+        const stats = await resStats.json();
+        if (stats.adminMacro?.unconfiguredOptList) {
+          setUnconfiguredOpts(stats.adminMacro.unconfiguredOptList);
+        }
       }
     } catch {
       setAmbangList([]);
@@ -85,6 +106,10 @@ export default function AmbangEkonomi() {
     fetchAmbang();
   });
 
+  const allFilterOptions = () => {
+    return ['SEMUA', ...Array.from(new Set([...komoditasOptions(), ...ambangList().map((a) => a.komoditas)]))];
+  };
+
   const filteredAmbang = () => {
     const k = filterKomoditas();
     if (k === 'SEMUA') return ambangList();
@@ -95,10 +120,14 @@ export default function AmbangEkonomi() {
     e.preventDefault();
     if (!optNama().trim()) return;
 
+    const targetKomoditas = isCustomKomoditas() && customKomoditas().trim()
+      ? customKomoditas().trim()
+      : komoditas();
+
     setIsSubmitting(true);
     try {
       const payload = {
-        komoditas: komoditas(),
+        komoditas: targetKomoditas,
         opt: optNama().trim(),
         fase: fase(),
         satuan: satuan(),
@@ -197,7 +226,7 @@ export default function AmbangEkonomi() {
 
       {/* Filter Tabs Komoditas */}
       <div class="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs">
-        {['SEMUA', 'Padi', 'Jagung', 'Cabai', 'Bawang Merah', 'Kedelai'].map((kom) => (
+        {allFilterOptions().map((kom) => (
           <button
             type="button"
             onClick={() => setFilterKomoditas(kom)}
@@ -385,15 +414,65 @@ export default function AmbangEkonomi() {
               1. Konteks Identitas Sasaran
             </span>
 
+            {/* Unconfigured OPT Quick Select */}
+            <Show when={unconfiguredOpts().length > 0}>
+              <div class="p-2 rounded-lg bg-orange-100/70 dark:bg-orange-950/40 border border-orange-200 dark:border-orange-900/60 space-y-1">
+                <span class="font-display text-[9px] font-bold text-orange-900 dark:text-orange-200 block">
+                  OPT Baru dari Lapangan (Klik untuk isi cepat):
+                </span>
+                <div class="flex flex-wrap gap-1">
+                  <For each={unconfiguredOpts()}>
+                    {(uOpt) => (
+                      <button
+                        type="button"
+                        onClick={() => setOptNama(uOpt)}
+                        class="px-2 py-0.5 rounded bg-white dark:bg-slate-900 border border-orange-300 dark:border-orange-700 text-orange-800 dark:text-orange-200 font-display text-[10px] font-bold hover:bg-orange-50 transition-colors"
+                      >
+                        + {uOpt}
+                      </button>
+                    )}
+                  </For>
+                </div>
+              </div>
+            </Show>
+
             {/* Komoditas */}
-            <CustomSelect
-              label="KOMODITAS TANAMAN TARGET"
-              items={['Padi', 'Jagung', 'Cabai', 'Bawang Merah', 'Kedelai']}
-              value={komoditas()}
-              onChange={(val) => {
-                setKomoditas(val);
-              }}
-            />
+            <div class="space-y-1.5">
+              <div class="flex items-center justify-between">
+                <label class="font-display block text-[10px] font-bold text-slate-600 dark:text-slate-400">
+                  KOMODITAS TANAMAN TARGET
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setIsCustomKomoditas(!isCustomKomoditas())}
+                  class="font-display text-[10px] text-violet-600 dark:text-purple-400 font-bold hover:underline"
+                >
+                  {isCustomKomoditas() ? 'Pilih dari Daftar' : '+ Komoditas Baru'}
+                </button>
+              </div>
+
+              <Show
+                when={isCustomKomoditas()}
+                fallback={
+                  <CustomSelect
+                    items={komoditasOptions()}
+                    value={komoditas()}
+                    onChange={(val) => {
+                      setKomoditas(val);
+                    }}
+                  />
+                }
+              >
+                <input
+                  type="text"
+                  value={customKomoditas()}
+                  onInput={(e) => setCustomKomoditas(e.currentTarget.value)}
+                  placeholder="Ketik nama komoditas baru (misal: Tomat, Semangka)"
+                  class="font-data w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-800 dark:text-slate-100 focus:outline-none focus:border-violet-600 shadow-xs"
+                  required={isCustomKomoditas()}
+                />
+              </Show>
+            </div>
 
             {/* Nama Spesifik OPT */}
             <div>
