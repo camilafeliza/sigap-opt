@@ -31,3 +31,23 @@ export interface SensorTelemetry {
   foto_url?: string;
   created_at: string;
 }
+
+export interface IotDevice {
+  id: string;
+  device_id: string;
+  nama_perangkat: string;
+  petak: string;
+  komoditas: string;
+  camera_model: string;
+  sensor_model: string;
+  pir_pin: number;
+  status: 'online' | 'offline';
+  last_ping?: string;
+  has_telemetry: boolean;
+}
+
+export interface DeviceScanResponse {
+  devices: IotDevice[];
+  total_online: number;
+  message: string;
+}

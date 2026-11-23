@@ -47,30 +47,29 @@ pub async fn init_db(database_url: &str) -> Result<DbPool, Box<dyn std::error::E
     let _ = conn.execute("ALTER TABLE observasi ADD COLUMN sensor_kelembaban REAL", ()).await;
     let _ = conn.execute("ALTER TABLE observasi ADD COLUMN sensor_pir_motion INTEGER DEFAULT 0", ()).await;
 
-    // Pastikan tabel sensor_telemetry terisi minimal 1 data awal jika kosong
-    let mut check_count = conn.query("SELECT COUNT(*) FROM sensor_telemetry", ()).await?;
-    let count: i64 = if let Some(row) = check_count.next().await? {
-        row.get(0).unwrap_or(0)
-    } else {
-        0
-    };
+    // Auto-migrate tabel iot_devices untuk discovery hardware sebelum digunakan
+    let _ = conn.execute(
+        r#"
+        CREATE TABLE IF NOT EXISTS iot_devices (
+            id TEXT PRIMARY KEY,
+            device_id TEXT UNIQUE NOT NULL,
+            nama_perangkat TEXT NOT NULL,
+            petak TEXT,
+            komoditas TEXT,
+            camera_model TEXT DEFAULT 'OV2640',
+            sensor_model TEXT DEFAULT 'DHT22 / SHT30',
+            pir_pin INTEGER DEFAULT 13,
+            status TEXT NOT NULL DEFAULT 'offline',
+            ip_address TEXT,
+            last_ping DATETIME,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+        "#,
+        (),
+    ).await;
 
-    if count == 0 {
-        let sample_photo = include_str!("contoh-hama.b64");
-        let _ = conn.execute(
-            "INSERT INTO sensor_telemetry (id, device_id, petak, komoditas, suhu, kelembaban, pir_motion, foto_url) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
-            libsql::params![
-                "tel-init-01",
-                "ESP32-CAM-01",
-                "Blok A - Petak 1",
-                "Cabai",
-                29.4,
-                78.0,
-                1,
-                sample_photo.trim().to_string()
-            ],
-        ).await;
-    }
+    // Bersihkan data dummy (hanya data riil dari modul hardware yang dicatat)
+    let _ = conn.execute("DELETE FROM sensor_telemetry WHERE id = 'tel-init-01'", ()).await;
 
     tracing::info!("LibSQL Database initialized successfully at: {clean_path}");
     Ok(Arc::new(db))

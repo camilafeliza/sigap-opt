@@ -22,6 +22,7 @@ const char* WIFI_PASSWORD = "PASSWORD_WIFI";
 
 // 2. Alamat Gateway Ingestion Server sigap-opt
 const char* SERVER_TELEMETRY_URL = "https://sigap.raxbyte.com/api/iot/telemetry";
+const char* SERVER_PING_URL      = "https://sigap.raxbyte.com/api/iot/ping";
 const char* DEVICE_ID            = "ESP32-CAM-01";
 const char* PETAK_LAHAN          = "Blok A - Petak 1";
 const char* KOMODITAS_DEFAULT    = "Cabai";
@@ -112,6 +113,7 @@ void setup() {
 
   if (WiFi.status() == WL_CONNECTED) {
     Serial.println("\n[OK] Wi-Fi terhubung! IP: " + WiFi.localIP().toString());
+    kirimPingRegistrasi();
   } else {
     Serial.println("\n[WARN] Wi-Fi gagal, alat berjalan dalam mode sensor luring.");
   }
@@ -183,5 +185,19 @@ void kirimTelemetri(float suhu, float kelembaban, bool pirMotion) {
     Serial.printf("[HTTP] Gagal kirim: %s\n", http.errorToString(httpCode).c_str());
   }
 
+  http.end();
+}
+
+void kirimPingRegistrasi() {
+  if (WiFi.status() != WL_CONNECTED) return;
+  HTTPClient http;
+  http.begin(SERVER_PING_URL);
+  http.addHeader("Content-Type", "application/json");
+  String payload = "{\"device_id\":\"" + String(DEVICE_ID) + "\",\"nama_perangkat\":\"Stasiun Perangkap " + String(DEVICE_ID) + "\",\"petak\":\"" + String(PETAK_LAHAN) + "\",\"komoditas\":\"" + String(KOMODITAS_DEFAULT) + "\",\"camera_model\":\"OV2640\",\"sensor_model\":\"DHT22 / SHT30\",\"pir_pin\":13}";
+  Serial.println("[HANDSHAKE] Mengirim sinyal registrasi hardware ke server...");
+  int code = http.POST(payload);
+  if (code > 0) {
+    Serial.printf("[HANDSHAKE OK] Perangkat terdeteksi di server: %d\n", code);
+  }
   http.end();
 }

@@ -20,8 +20,9 @@ use crate::{
         ai_identify_handler, create_ambang_handler, create_observasi_handler,
         create_telemetry_handler, create_user_handler, dashboard_stats_handler,
         delete_ambang_handler, delete_user_handler, get_latest_telemetry_handler,
-        list_ambang_handler, list_komoditas_handler, list_observasi_handler,
-        list_telemetry_history_handler, list_users_handler, login_handler, me_handler, AppState,
+        list_ambang_handler, list_devices_handler, list_komoditas_handler, list_observasi_handler,
+        list_telemetry_history_handler, list_users_handler, login_handler, me_handler,
+        ping_device_handler, scan_devices_handler, AppState,
     },
     static_embed::static_handler,
 };
@@ -78,7 +79,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         // IoT & Sensor Telemetry Gateway
         .route("/iot/telemetry", post(create_telemetry_handler))
         .route("/iot/latest", get(get_latest_telemetry_handler))
-        .route("/iot/history", get(list_telemetry_history_handler));
+        .route("/iot/history", get(list_telemetry_history_handler))
+        .route("/iot/devices", get(list_devices_handler))
+        .route("/iot/ping", post(ping_device_handler))
+        .route("/iot/scan", post(scan_devices_handler));
 
     // 5. Satukan API dan Single Binary Static Embed (rust-embed SPA)
     let app = Router::new()

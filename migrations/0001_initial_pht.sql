@@ -94,6 +94,23 @@ CREATE TABLE IF NOT EXISTS sensor_telemetry (
 
 CREATE INDEX IF NOT EXISTS idx_telemetry_created ON sensor_telemetry(created_at);
 
+CREATE TABLE IF NOT EXISTS iot_devices (
+    id TEXT PRIMARY KEY,
+    device_id TEXT UNIQUE NOT NULL,
+    nama_perangkat TEXT NOT NULL,
+    petak TEXT,
+    komoditas TEXT,
+    camera_model TEXT DEFAULT 'OV2640',
+    sensor_model TEXT DEFAULT 'DHT22 / SHT30',
+    pir_pin INTEGER DEFAULT 13,
+    status TEXT NOT NULL DEFAULT 'offline',
+    ip_address TEXT,
+    last_ping DATETIME,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_devices_id ON iot_devices(device_id);
+
 -- Seed Data Awal
 INSERT OR IGNORE INTO users (id, username, password_hash, full_name, role) VALUES
 ('usr-admin-01', 'admin', '$argon2id$v=19$m=19456,t=2,p=1$c2lnYXAtb3B0LXNhbHQ$PjQk1L/NfKzQ1aH1Xk0yqJv3q1M', 'Super Administrator', 'superadmin'),
