@@ -31,6 +31,10 @@ import {
   WarningOctagon,
   Compass,
   MapPin,
+  Broadcast,
+  Thermometer,
+  Drop,
+  Lightning,
 } from 'phosphor-solid';
 
 export interface ObservasiItem {
@@ -73,13 +77,19 @@ export default function Dashboard() {
   const [filterStatus, setFilterStatus] = createSignal<'SEMUA' | 'BAHAYA' | 'WASPADA' | 'AMAN'>('SEMUA');
   const [selectedObs, setSelectedObs] = createSignal<ObservasiItem | null>(null);
   const [printModalOpen, setPrintModalOpen] = createSignal(false);
+  const [sensorData, setSensorData] = createSignal<any | null>(null);
 
   onMount(async () => {
     try {
-      const [resObs, resStats] = await Promise.all([
+      const [resObs, resStats, resSensor] = await Promise.all([
         fetch('/api/observasi'),
         fetch('/api/dashboard/stats'),
+        fetch('/api/iot/latest'),
       ]);
+
+      if (resSensor.ok) {
+        setSensorData(await resSensor.json());
+      }
 
       if (resObs.ok) {
         const data = await resObs.json();
@@ -242,6 +252,51 @@ export default function Dashboard() {
                       </div>
                     )}
                   </For>
+                </div>
+              </div>
+            </Show>
+
+            {/* Kartu Telemetri Sensor Lapangan (IoT Live) */}
+            <Show when={sensorData()}>
+              <div class="p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-2">
+                <div class="flex items-center justify-between">
+                  <div class="flex items-center gap-2">
+                    <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                    <span class="font-display text-xs font-bold text-slate-800 dark:text-slate-100 flex items-center gap-1.5">
+                      <Broadcast size={14} weight="bold" class="text-violet-600 dark:text-purple-400" />
+                      <span>{sensorData()?.device_id || 'ESP32-CAM-01'}</span>
+                    </span>
+                    <span class="font-data text-[10px] text-slate-400">· {sensorData()?.petak || 'Lahan'}</span>
+                  </div>
+                  <span class="px-2 py-0.5 rounded-md bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 font-data font-bold text-[9px] uppercase">
+                    Aktif
+                  </span>
+                </div>
+
+                <div class="grid grid-cols-3 gap-2 pt-1 border-t border-slate-100 dark:border-slate-800">
+                  <div class="flex items-center gap-1.5 text-slate-600 dark:text-slate-300">
+                    <Thermometer size={14} weight="bold" class="text-orange-500 shrink-0" />
+                    <div>
+                      <div class="font-data font-black text-xs text-slate-900 dark:text-slate-100">{sensorData()?.suhu || 29.4}°C</div>
+                      <div class="font-data text-[9px] text-slate-400">Suhu</div>
+                    </div>
+                  </div>
+                  <div class="flex items-center gap-1.5 text-slate-600 dark:text-slate-300">
+                    <Drop size={14} weight="bold" class="text-blue-500 shrink-0" />
+                    <div>
+                      <div class="font-data font-black text-xs text-slate-900 dark:text-slate-100">{sensorData()?.kelembaban || 78}%</div>
+                      <div class="font-data text-[9px] text-slate-400">Lembab</div>
+                    </div>
+                  </div>
+                  <div class="flex items-center gap-1.5 text-slate-600 dark:text-slate-300">
+                    <Lightning size={14} weight="bold" class="text-amber-500 shrink-0" />
+                    <div>
+                      <div class="font-data font-black text-xs text-slate-900 dark:text-slate-100 truncate">
+                        {sensorData()?.pir_motion ? 'Gerak!' : 'Siaga'}
+                      </div>
+                      <div class="font-data text-[9px] text-slate-400">PIR</div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </Show>

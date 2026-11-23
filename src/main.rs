@@ -17,10 +17,11 @@ use crate::{
     config::Config,
     db::init_db,
     handlers::{
-        ai_identify_handler, create_ambang_handler, create_observasi_handler, create_user_handler,
-        dashboard_stats_handler, delete_ambang_handler, delete_user_handler, list_ambang_handler,
-        list_komoditas_handler, list_observasi_handler, list_users_handler, login_handler,
-        me_handler, AppState,
+        ai_identify_handler, create_ambang_handler, create_observasi_handler,
+        create_telemetry_handler, create_user_handler, dashboard_stats_handler,
+        delete_ambang_handler, delete_user_handler, get_latest_telemetry_handler,
+        list_ambang_handler, list_komoditas_handler, list_observasi_handler,
+        list_telemetry_history_handler, list_users_handler, login_handler, me_handler, AppState,
     },
     static_embed::static_handler,
 };
@@ -73,7 +74,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         .route("/ambang-ekonomi", get(list_ambang_handler).post(create_ambang_handler))
         .route("/ambang-ekonomi/:id", delete(delete_ambang_handler))
         // Google Gemini Multimodal Vision AI Proxy
-        .route("/ai/identify", post(ai_identify_handler));
+        .route("/ai/identify", post(ai_identify_handler))
+        // IoT & Sensor Telemetry Gateway
+        .route("/iot/telemetry", post(create_telemetry_handler))
+        .route("/iot/latest", get(get_latest_telemetry_handler))
+        .route("/iot/history", get(list_telemetry_history_handler));
 
     // 5. Satukan API dan Single Binary Static Embed (rust-embed SPA)
     let app = Router::new()

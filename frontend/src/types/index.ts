@@ -19,3 +19,15 @@ export interface LoginPayload {
   password_hash?: string;
   password?: string;
 }
+
+export interface SensorTelemetry {
+  id: string;
+  device_id: string;
+  petak: string;
+  komoditas: string;
+  suhu: number;
+  kelembaban: number;
+  pir_motion: boolean;
+  foto_url?: string;
+  created_at: string;
+}

@@ -4,6 +4,7 @@ frontend/node_modules/
 
 # Rust build artifacts
 target/
+dist-bin/
 
 # Frontend build
 frontend/dist/
@@ -14,6 +15,8 @@ frontend/dist/
 *.db-wal
 data/
 contoh-hama.jpeg
+contoh-hama.b64
+*.docx
 
 # Environment & credentials
 .env

@@ -63,6 +63,20 @@ CREATE INDEX IF NOT EXISTS idx_observasi_user ON observasi(user_id);
 CREATE INDEX IF NOT EXISTS idx_observasi_created ON observasi(created_at);
 CREATE INDEX IF NOT EXISTS idx_ambang_lookup ON ambang_ekonomi(komoditas_id, opt_id, fase_pertumbuhan);
 
+CREATE TABLE IF NOT EXISTS sensor_telemetry (
+    id TEXT PRIMARY KEY,
+    device_id TEXT NOT NULL,
+    petak TEXT NOT NULL,
+    komoditas TEXT NOT NULL,
+    suhu REAL NOT NULL,
+    kelembaban REAL NOT NULL,
+    pir_motion INTEGER NOT NULL DEFAULT 0,
+    foto_url TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_telemetry_created ON sensor_telemetry(created_at);
+
 -- Seed Data Awal
 INSERT OR IGNORE INTO users (id, username, password_hash, full_name, role) VALUES
 ('usr-admin-01', 'admin', '$argon2id$v=19$m=19456,t=2,p=1$c2lnYXAtb3B0LXNhbHQ$PjQk1L/NfKzQ1aH1Xk0yqJv3q1M', 'Super Administrator', 'superadmin'),

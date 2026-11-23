@@ -26,6 +26,10 @@ import {
   WarningCircle as WarningIcon,
   ShieldCheck as ShieldIcon,
   ChartBar as ChartBarIcon,
+  Broadcast as BroadcastIcon,
+  Thermometer as ThermometerIcon,
+  Drop as DropIcon,
+  Lightning as LightningIcon,
 } from 'phosphor-solid';
 
 interface AiDetectionResult {
@@ -100,6 +104,74 @@ export default function Observasi() {
   const [aiResult, setAiResult] = createSignal<AiDetectionResult | null>(null);
   const [manualOptOverride, setManualOptOverride] = createSignal(false);
 
+  // Sumber Data Input: Kamera | Upload | Sensor IoT
+  const [inputSource, setInputSource] = createSignal<'kamera' | 'upload' | 'sensor'>('kamera');
+  const [sensorTelemetry, setSensorTelemetry] = createSignal<any | null>(null);
+  const [isLoadingSensor, setIsLoadingSensor] = createSignal(false);
+  const [isSimulatingSensor, setIsSimulatingSensor] = createSignal(false);
+
+  // Tarik Telemetri Sensor Terkini
+  const loadLatestTelemetry = async () => {
+    setIsLoadingSensor(true);
+    try {
+      const res = await fetch('/api/iot/latest');
+      if (res.ok) {
+        const data = await res.json();
+        setSensorTelemetry(data);
+      }
+    } catch (e) {
+      console.error('Failed to load telemetry:', e);
+    } finally {
+      setIsLoadingSensor(false);
+    }
+  };
+
+  // Simulasikan Pemicu Sensor Fisik ESP32 (PnP Demo)
+  const simulateSensorTrigger = async () => {
+    setIsSimulatingSensor(true);
+    try {
+      const randomTemp = 28 + Math.round(Math.random() * 30) / 10;
+      const randomHum = 70 + Math.round(Math.random() * 20);
+      const res = await fetch('/api/iot/telemetry', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          device_id: 'ESP32-CAM-01',
+          petak: petak() || 'Blok A - Petak 1',
+          komoditas: komoditas() || 'Cabai',
+          suhu: randomTemp,
+          kelembaban: randomHum,
+          pir_motion: true,
+          foto_url: sensorTelemetry()?.foto_url || undefined,
+        }),
+      });
+      if (res.ok) {
+        toast.success('Pemicu sensor terdeteksi! Data baru diterima.');
+        await loadLatestTelemetry();
+      }
+    } catch (e) {
+      toast.error('Gagal memicu sensor.');
+    } finally {
+      setIsSimulatingSensor(false);
+    }
+  };
+
+  // Gunakan Foto & Data dari Sensor IoT
+  const handleUseSensorCapture = () => {
+    const tele = sensorTelemetry();
+    if (!tele || !tele.foto_url) {
+      toast.error('Belum ada foto dari stasiun sensor.');
+      return;
+    }
+    if (tele.petak) setPetak(tele.petak);
+    if (tele.komoditas && komoditasList().includes(tele.komoditas)) {
+      setKomoditas(tele.komoditas);
+    }
+    setImagePreview(tele.foto_url);
+    analyzeWithAi(tele.foto_url);
+    toast.success('Tangkapan kamera sensor dimuat untuk analisis PHT!');
+  };
+
   // Form Step 3: Sampling Lapangan (2 Metode PHT Standar)
   const [samplingMode, setSamplingMode] = createSignal<'simple' | 'severity'>('simple');
   
@@ -153,6 +225,7 @@ export default function Observasi() {
         const names = komData.map((k) => k.nama);
         setKomoditasList((prev) => Array.from(new Set([...prev, ...names])));
       }
+      loadLatestTelemetry();
     } catch (_) {}
 
     setIsLoadingHistory(true);
@@ -725,41 +798,186 @@ export default function Observasi() {
             </Show>
 
             <div class="space-y-3">
+              {/* Selector 3 Sumber Data PHT: Kamera, Upload, Sensor IoT */}
+              <div class="grid grid-cols-3 gap-1.5 p-1 bg-slate-100 dark:bg-slate-800/80 rounded-2xl border border-slate-200 dark:border-slate-700/60 shadow-inner">
+                <button
+                  type="button"
+                  onClick={() => setInputSource('kamera')}
+                  class={`py-2 px-1 text-xs font-display font-bold rounded-xl flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                    inputSource() === 'kamera'
+                      ? 'bg-white dark:bg-slate-700 text-orange-600 dark:text-orange-400 shadow-sm'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                  }`}
+                >
+                  <CameraIcon size={15} weight="bold" />
+                  <span>Kamera</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setInputSource('upload')}
+                  class={`py-2 px-1 text-xs font-display font-bold rounded-xl flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                    inputSource() === 'upload'
+                      ? 'bg-white dark:bg-slate-700 text-orange-600 dark:text-orange-400 shadow-sm'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                  }`}
+                >
+                  <UploadIcon size={15} weight="bold" />
+                  <span>Upload</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setInputSource('sensor');
+                    loadLatestTelemetry();
+                  }}
+                  class={`py-2 px-1 text-xs font-display font-bold rounded-xl flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                    inputSource() === 'sensor'
+                      ? 'bg-white dark:bg-slate-700 text-violet-700 dark:text-purple-300 shadow-sm'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                  }`}
+                >
+                  <BroadcastIcon size={15} weight="bold" />
+                  <span>Sensor IoT</span>
+                </button>
+              </div>
+
               {/* Foto Picker / Preview */}
               <Show
                 when={imagePreview()}
                 fallback={
-                  <div class="space-y-2">
-                    {/* Tombol Kamera Tunggal dengan Deteksi Device Otomatis */}
-                    <button
-                      type="button"
-                      onClick={handleCameraAction}
-                      class="w-full flex flex-col items-center justify-center p-6 border-2 border-dashed border-orange-300 dark:border-orange-800/80 rounded-2xl hover:border-orange-500 dark:hover:border-orange-500 bg-orange-50/40 dark:bg-orange-950/20 hover:bg-orange-50/80 transition-all group active:scale-[0.99] cursor-pointer"
-                    >
-                      <div class="w-14 h-14 rounded-2xl bg-orange-500 text-white flex items-center justify-center mb-2.5 shadow-md shadow-orange-500/30 group-hover:scale-105 transition-transform">
-                        <CameraIcon size={28} weight="bold" />
+                  <div>
+                    {/* Mode 1: Kamera Langsung */}
+                    <Show when={inputSource() === 'kamera'}>
+                      <div class="space-y-2">
+                        <button
+                          type="button"
+                          onClick={handleCameraAction}
+                          class="w-full flex flex-col items-center justify-center p-6 border-2 border-dashed border-orange-300 dark:border-orange-800/80 rounded-2xl hover:border-orange-500 dark:hover:border-orange-500 bg-orange-50/40 dark:bg-orange-950/20 hover:bg-orange-50/80 transition-all group active:scale-[0.99] cursor-pointer"
+                        >
+                          <div class="w-14 h-14 rounded-2xl bg-orange-500 text-white flex items-center justify-center mb-2.5 shadow-md shadow-orange-500/30 group-hover:scale-105 transition-transform">
+                            <CameraIcon size={28} weight="bold" />
+                          </div>
+                          <span class="font-display font-black text-sm text-slate-800 dark:text-slate-100">
+                            Buka Kamera
+                          </span>
+                          <span class="font-data text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                            Potret langsung daun atau hama di tanaman
+                          </span>
+                        </button>
                       </div>
-                      <span class="font-display font-black text-sm text-slate-800 dark:text-slate-100">
-                        Foto OPT
-                      </span>
-                      <span class="font-data text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-                        Hama atau gejala daun
-                      </span>
-                    </button>
+                    </Show>
 
-                    {/* Opsi Unggah dari Galeri */}
-                    <div class="flex items-center justify-center pt-0.5">
-                      <label class="font-display font-bold text-xs text-slate-600 dark:text-slate-400 hover:text-violet-700 dark:hover:text-purple-300 flex items-center gap-1.5 cursor-pointer py-1.5 px-3 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
-                        <UploadIcon size={15} weight="bold" />
-                        <span>Pilih dari galeri</span>
-                        <input
-                          type="file"
-                          accept="image/*"
-                          onChange={handlePhotoSelect}
-                          class="hidden"
-                        />
-                      </label>
-                    </div>
+                    {/* Mode 2: Unggah dari Galeri / Berkas */}
+                    <Show when={inputSource() === 'upload'}>
+                      <div class="space-y-2">
+                        <label class="w-full flex flex-col items-center justify-center p-6 border-2 border-dashed border-violet-300 dark:border-purple-800/80 rounded-2xl hover:border-violet-500 dark:hover:border-purple-500 bg-purple-50/40 dark:bg-purple-950/20 hover:bg-purple-50/80 transition-all group active:scale-[0.99] cursor-pointer">
+                          <div class="w-14 h-14 rounded-2xl bg-violet-600 text-white flex items-center justify-center mb-2.5 shadow-md shadow-violet-600/30 group-hover:scale-105 transition-transform">
+                            <UploadIcon size={28} weight="bold" />
+                          </div>
+                          <span class="font-display font-black text-sm text-slate-800 dark:text-slate-100">
+                            Pilih Foto Galeri
+                          </span>
+                          <span class="font-data text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                            Format JPG, PNG, atau WEBP
+                          </span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={handlePhotoSelect}
+                            class="hidden"
+                          />
+                        </label>
+                      </div>
+                    </Show>
+
+                    {/* Mode 3: Stasiun Sensor IoT (ESP32-CAM PnP) */}
+                    <Show when={inputSource() === 'sensor'}>
+                      <div class="p-4 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80 rounded-2xl space-y-3">
+                        <div class="flex items-center justify-between pb-2 border-b border-slate-200 dark:border-slate-700">
+                          <div class="flex items-center gap-2">
+                            <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                            <span class="font-display font-bold text-xs text-slate-800 dark:text-slate-100">
+                              {sensorTelemetry()?.device_id || 'ESP32-CAM-01'}
+                            </span>
+                            <span class="px-2 py-0.5 rounded-md bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 font-data font-bold text-[10px]">
+                              ONLINE
+                            </span>
+                          </div>
+                          <span class="font-data text-[10px] text-slate-400">
+                            {sensorTelemetry()?.created_at ? new Date(sensorTelemetry().created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : 'Terhubung'}
+                          </span>
+                        </div>
+
+                        {/* Telemetri Numerik: Suhu, Kelembaban, PIR */}
+                        <div class="grid grid-cols-3 gap-2">
+                          <div class="p-2.5 bg-white dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-700 flex flex-col items-center text-center">
+                            <div class="flex items-center gap-1 text-orange-500 mb-0.5">
+                              <ThermometerIcon size={14} weight="bold" />
+                              <span class="font-data font-bold text-xs">
+                                {sensorTelemetry()?.suhu ? `${sensorTelemetry().suhu}°C` : '29.4°C'}
+                              </span>
+                            </div>
+                            <span class="font-data text-[9px] text-slate-400">Suhu Udara</span>
+                          </div>
+
+                          <div class="p-2.5 bg-white dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-700 flex flex-col items-center text-center">
+                            <div class="flex items-center gap-1 text-blue-500 mb-0.5">
+                              <DropIcon size={14} weight="bold" />
+                              <span class="font-data font-bold text-xs">
+                                {sensorTelemetry()?.kelembaban ? `${sensorTelemetry().kelembaban}%` : '78%'}
+                              </span>
+                            </div>
+                            <span class="font-data text-[9px] text-slate-400">Kelembaban</span>
+                          </div>
+
+                          <div class="p-2.5 bg-white dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-700 flex flex-col items-center text-center">
+                            <div class="flex items-center gap-1 text-amber-500 mb-0.5">
+                              <LightningIcon size={14} weight="bold" />
+                              <span class="font-data font-bold text-[10px] truncate max-w-full">
+                                {sensorTelemetry()?.pir_motion ? 'Gerak!' : 'Siaga'}
+                              </span>
+                            </div>
+                            <span class="font-data text-[9px] text-slate-400">Sensor PIR</span>
+                          </div>
+                        </div>
+
+                        {/* Thumbnail Tangkapan Kamera Sensor */}
+                        <Show when={sensorTelemetry()?.foto_url}>
+                          <div class="relative rounded-xl overflow-hidden aspect-video bg-black flex items-center justify-center border border-slate-200 dark:border-slate-700 shadow-sm">
+                            <img
+                              src={sensorTelemetry().foto_url}
+                              alt="Sensor Trap Capture"
+                              class="w-full h-full object-cover"
+                            />
+                            <div class="absolute top-2 left-2 px-2 py-0.5 rounded-md bg-black/60 backdrop-blur-sm text-white font-data text-[9px]">
+                              Tangkapan Kamera Sensor Lapangan
+                            </div>
+                          </div>
+                        </Show>
+
+                        {/* Tombol Aksi Sensor */}
+                        <div class="flex items-center gap-2 pt-1">
+                          <button
+                            type="button"
+                            onClick={handleUseSensorCapture}
+                            class="flex-1 py-2 px-3 rounded-xl bg-violet-600 hover:bg-violet-700 text-white font-display font-bold text-xs flex items-center justify-center gap-1.5 transition-colors shadow-sm cursor-pointer"
+                          >
+                            <SparkleIcon size={14} weight="bold" />
+                            <span>Gunakan Data Sensor Ini</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={simulateSensorTrigger}
+                            disabled={isSimulatingSensor()}
+                            class="py-2 px-3 rounded-xl bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 font-display font-bold text-xs flex items-center justify-center gap-1 transition-colors cursor-pointer"
+                            title="Simulasikan Pemicu Sensor untuk Demo Sidang"
+                          >
+                            <LightningIcon size={14} weight="bold" />
+                            <span>{isSimulatingSensor() ? 'Memicu...' : 'Pemicu Demo'}</span>
+                          </button>
+                        </div>
+                      </div>
+                    </Show>
 
                     {/* Input tersembunyi khusus pemotretan native sensor perangkat bergerak */}
                     <input
