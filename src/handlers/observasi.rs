@@ -36,7 +36,12 @@ pub async fn list_observasi_handler(
             o.intensitas_serangan_persen,
             o.status_bahaya,
             o.rekomendasi_pht,
-            o.created_at
+            o.created_at,
+            o.sumber_input,
+            o.sensor_device_id,
+            o.sensor_suhu,
+            o.sensor_kelembaban,
+            o.sensor_pir_motion
         FROM observasi o
         LEFT JOIN komoditas k ON o.komoditas_id = k.id
         LEFT JOIN opt_katalog op ON o.opt_id = op.id
@@ -50,6 +55,7 @@ pub async fn list_observasi_handler(
 
     let mut list = Vec::new();
     while let Some(row) = rows.next().await.map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))? {
+        let pir_val: Option<i64> = row.get(19).ok();
         list.push(ObservasiItem {
             id: row.get(0).unwrap_or_default(),
             komoditas: row.get(1).unwrap_or_default(),
@@ -66,6 +72,11 @@ pub async fn list_observasi_handler(
             status_bahaya: row.get(12).unwrap_or_else(|_| "AMAN".to_string()),
             rekomendasi_pht: row.get(13).unwrap_or_default(),
             created_at: row.get(14).unwrap_or_default(),
+            sumber_input: row.get(15).ok(),
+            sensor_device_id: row.get(16).ok(),
+            sensor_suhu: row.get(17).ok(),
+            sensor_kelembaban: row.get(18).ok(),
+            sensor_pir_motion: pir_val.map(|v| v != 0),
         });
     }
 
@@ -234,14 +245,21 @@ pub async fn create_observasi_handler(
 
     let now = chrono::Utc::now().to_rfc3339();
 
+    let sumber_input = payload.sumber_input.clone().unwrap_or_else(|| "kamera".to_string());
+    let sensor_device_id = payload.sensor_device_id.clone();
+    let sensor_suhu = payload.sensor_suhu;
+    let sensor_kelembaban = payload.sensor_kelembaban;
+    let sensor_pir_motion_int = payload.sensor_pir_motion.map(|b| if b { 1i64 } else { 0i64 });
+
     conn.execute(
         r#"
         INSERT INTO observasi (
             id, user_id, komoditas_id, opt_id, fase_pertumbuhan, foto_path,
             ai_nama_opt, ai_confidence, ai_raw_json,
             total_sampel, total_terserang, intensitas_serangan_persen,
-            status_bahaya, rekomendasi_pht, catatan_lapangan, created_at
-        ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)
+            status_bahaya, rekomendasi_pht, catatan_lapangan, created_at,
+            sumber_input, sensor_device_id, sensor_suhu, sensor_kelembaban, sensor_pir_motion
+        ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21)
         "#,
         libsql::params![
             id.as_str(),
@@ -260,10 +278,41 @@ pub async fn create_observasi_handler(
             rekomendasi.as_str(),
             petak.as_str(),
             now.as_str(),
+            sumber_input.as_str(),
+            sensor_device_id.as_deref(),
+            sensor_suhu,
+            sensor_kelembaban,
+            sensor_pir_motion_int,
         ],
     )
     .await
     .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Gagal menyimpan observasi: {e}")))?;
+
+    // Jika observasi bersumber dari Sensor IoT, catat pula ke tabel normalisasi observasi_sensor
+    if sumber_input == "sensor_iot" || sensor_device_id.is_some() {
+        let obs_sensor_id = format!("obs-sen-{}", &uuid::Uuid::new_v4().to_string()[..8]);
+        let dev_id = sensor_device_id.as_deref().unwrap_or("ESP32-CAM-01");
+        let suhu_val = sensor_suhu.unwrap_or(29.4);
+        let hum_val = sensor_kelembaban.unwrap_or(78.0);
+        let pir_val = sensor_pir_motion_int.unwrap_or(1);
+        let _ = conn.execute(
+            r#"
+            INSERT OR REPLACE INTO observasi_sensor (
+                id, observasi_id, device_id, suhu, kelembaban, pir_motion, created_at
+            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
+            "#,
+            libsql::params![
+                obs_sensor_id.as_str(),
+                id.as_str(),
+                dev_id,
+                suhu_val,
+                hum_val,
+                pir_val,
+                now.as_str(),
+            ],
+        )
+        .await;
+    }
 
     let record = ObservasiItem {
         id,
@@ -281,6 +330,11 @@ pub async fn create_observasi_handler(
         status_bahaya: status.to_string(),
         rekomendasi_pht: rekomendasi,
         created_at: now,
+        sumber_input: Some(sumber_input),
+        sensor_device_id,
+        sensor_suhu,
+        sensor_kelembaban,
+        sensor_pir_motion: payload.sensor_pir_motion,
     };
 
     Ok((StatusCode::CREATED, Json(record)))

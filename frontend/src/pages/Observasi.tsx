@@ -58,6 +58,11 @@ interface ObservasiHistoryItem {
   intensitas_persen: number;
   status_bahaya: 'AMAN' | 'WASPADA' | 'BAHAYA';
   rekomendasi_pht: string;
+  sumber_input?: string;
+  sensor_device_id?: string;
+  sensor_suhu?: number;
+  sensor_kelembaban?: number;
+  sensor_pir_motion?: boolean;
   created_at: string;
 }
 
@@ -204,6 +209,11 @@ export default function Observasi() {
     threshold_waspada: number;
     threshold_bahaya: number;
     rekomendasi_pht: string;
+    sumber_input?: string;
+    sensor_device_id?: string;
+    sensor_suhu?: number;
+    sensor_kelembaban?: number;
+    sensor_pir_motion?: boolean;
   } | null>(null);
   const [detailModalItem, setDetailModalItem] = createSignal<ObservasiHistoryItem | null>(null);
   const [ambangList, setAmbangList] = createSignal<any[]>([]);
@@ -539,6 +549,12 @@ export default function Observasi() {
     e.preventDefault();
     setIsSaving(true);
 
+    const currentSumberInput = inputSource() === 'sensor' ? 'sensor_iot' : inputSource() === 'upload' ? 'upload' : 'kamera';
+    const currentDevId = inputSource() === 'sensor' ? (sensorTelemetry()?.device_id || 'ESP32-CAM-01') : undefined;
+    const currentSuhu = inputSource() === 'sensor' ? sensorTelemetry()?.suhu : undefined;
+    const currentKelembaban = inputSource() === 'sensor' ? sensorTelemetry()?.kelembaban : undefined;
+    const currentPirMotion = inputSource() === 'sensor' ? sensorTelemetry()?.pir_motion : undefined;
+
     const calculatedResult = {
       petak: petak(),
       komoditas: komoditas(),
@@ -553,6 +569,11 @@ export default function Observasi() {
       threshold_waspada: thresholdWaspada(),
       threshold_bahaya: thresholdBahaya(),
       rekomendasi_pht: rekomendasiPht(),
+      sumber_input: currentSumberInput,
+      sensor_device_id: currentDevId,
+      sensor_suhu: currentSuhu,
+      sensor_kelembaban: currentKelembaban,
+      sensor_pir_motion: currentPirMotion,
     };
     setLastResult(calculatedResult);
 
@@ -569,6 +590,11 @@ export default function Observasi() {
         intensitas_persen: calculatedResult.intensitas_persen,
         status_bahaya: calculatedResult.status_bahaya,
         rekomendasi_pht: calculatedResult.rekomendasi_pht,
+        sumber_input: currentSumberInput,
+        sensor_device_id: currentDevId,
+        sensor_suhu: currentSuhu,
+        sensor_kelembaban: currentKelembaban,
+        sensor_pir_motion: currentPirMotion,
       };
 
       const res = await fetch('/api/observasi', {
@@ -1381,6 +1407,12 @@ export default function Observasi() {
                         <span class="text-[10px] font-display font-bold text-slate-500 dark:text-slate-400">
                           {obs.komoditas}
                         </span>
+                        <Show when={obs.sumber_input === 'sensor_iot' || obs.sensor_device_id}>
+                          <span class="inline-flex items-center gap-1 text-[9px] font-bold text-violet-700 dark:text-violet-300 bg-violet-100 dark:bg-violet-950/70 border border-violet-200 dark:border-violet-800 px-1.5 py-0.5 rounded-md">
+                            <Broadcast size={10} weight="bold" />
+                            <span>IoT</span>
+                          </span>
+                        </Show>
                       </div>
                       <span
                         class={`font-display text-[9px] font-black px-2 py-0.5 rounded-full ${
@@ -1459,6 +1491,40 @@ export default function Observasi() {
                   {item().rekomendasi_pht}
                 </p>
               </div>
+
+              <Show when={item().sumber_input === 'sensor_iot' || item().sensor_device_id}>
+                <div class="p-3 rounded-xl bg-violet-50 dark:bg-violet-950/40 border border-violet-200 dark:border-violet-800 space-y-2">
+                  <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-1.5 text-violet-700 dark:text-violet-300 font-display font-bold text-[11px]">
+                      <Broadcast size={14} weight="bold" />
+                      <span>Telemetri Stasiun Sensor IoT</span>
+                    </div>
+                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-violet-200 text-violet-800 dark:bg-violet-900/60 dark:text-violet-200">
+                      {item().sensor_device_id || 'ESP32-CAM-01'}
+                    </span>
+                  </div>
+                  <div class="grid grid-cols-3 gap-2 pt-1">
+                    <div class="p-2 rounded-lg bg-white dark:bg-slate-900 border border-violet-100 dark:border-violet-900/40 text-center">
+                      <span class="text-[9px] text-slate-400 block font-bold">SUHU</span>
+                      <span class="font-display font-bold text-xs text-slate-800 dark:text-slate-100">
+                        {item().sensor_suhu != null ? `${item().sensor_suhu} °C` : '-'}
+                      </span>
+                    </div>
+                    <div class="p-2 rounded-lg bg-white dark:bg-slate-900 border border-violet-100 dark:border-violet-900/40 text-center">
+                      <span class="text-[9px] text-slate-400 block font-bold">KELEMBABAN</span>
+                      <span class="font-display font-bold text-xs text-slate-800 dark:text-slate-100">
+                        {item().sensor_kelembaban != null ? `${item().sensor_kelembaban} %` : '-'}
+                      </span>
+                    </div>
+                    <div class="p-2 rounded-lg bg-white dark:bg-slate-900 border border-violet-100 dark:border-violet-900/40 text-center">
+                      <span class="text-[9px] text-slate-400 block font-bold">SENSOR PIR</span>
+                      <span class={`font-display font-bold text-[10px] ${item().sensor_pir_motion ? 'text-orange-600 dark:text-orange-400' : 'text-slate-600 dark:text-slate-400'}`}>
+                        {item().sensor_pir_motion ? 'GERAK' : 'SIAGA'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </Show>
 
               <Button
                 variant="primary"
@@ -1612,6 +1678,40 @@ export default function Observasi() {
                   {res().rekomendasi_pht}
                 </p>
               </div>
+
+              <Show when={res().sumber_input === 'sensor_iot' || res().sensor_device_id}>
+                <div class="p-3 rounded-xl bg-violet-50 dark:bg-violet-950/40 border border-violet-200 dark:border-violet-800 space-y-2">
+                  <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-1.5 text-violet-700 dark:text-violet-300 font-display font-bold text-[11px]">
+                      <Broadcast size={14} weight="bold" />
+                      <span>Telemetri Stasiun Sensor IoT</span>
+                    </div>
+                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-violet-200 text-violet-800 dark:bg-violet-900/60 dark:text-violet-200">
+                      {res().sensor_device_id || 'ESP32-CAM-01'}
+                    </span>
+                  </div>
+                  <div class="grid grid-cols-3 gap-2 pt-1">
+                    <div class="p-2 rounded-lg bg-white dark:bg-slate-900 border border-violet-100 dark:border-violet-900/40 text-center">
+                      <span class="text-[9px] text-slate-400 block font-bold">SUHU</span>
+                      <span class="font-display font-bold text-xs text-slate-800 dark:text-slate-100">
+                        {res().sensor_suhu != null ? `${res().sensor_suhu} °C` : '-'}
+                      </span>
+                    </div>
+                    <div class="p-2 rounded-lg bg-white dark:bg-slate-900 border border-violet-100 dark:border-violet-900/40 text-center">
+                      <span class="text-[9px] text-slate-400 block font-bold">KELEMBABAN</span>
+                      <span class="font-display font-bold text-xs text-slate-800 dark:text-slate-100">
+                        {res().sensor_kelembaban != null ? `${res().sensor_kelembaban} %` : '-'}
+                      </span>
+                    </div>
+                    <div class="p-2 rounded-lg bg-white dark:bg-slate-900 border border-violet-100 dark:border-violet-900/40 text-center">
+                      <span class="text-[9px] text-slate-400 block font-bold">SENSOR PIR</span>
+                      <span class={`font-display font-bold text-[10px] ${res().sensor_pir_motion ? 'text-orange-600 dark:text-orange-400' : 'text-slate-600 dark:text-slate-400'}`}>
+                        {res().sensor_pir_motion ? 'GERAK' : 'SIAGA'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </Show>
 
               {/* 4. Konfirmasi Sinkronisasi Otomatis ke Basis Data & Dasbor */}
               <div class="p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900/60 flex items-center gap-2">

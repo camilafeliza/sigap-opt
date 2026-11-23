@@ -16,6 +16,11 @@ pub struct ObservasiItem {
     pub intensitas_persen: f64,
     pub status_bahaya: String,
     pub rekomendasi_pht: String,
+    pub sumber_input: Option<String>,
+    pub sensor_device_id: Option<String>,
+    pub sensor_suhu: Option<f64>,
+    pub sensor_kelembaban: Option<f64>,
+    pub sensor_pir_motion: Option<bool>,
     pub created_at: String,
 }
 
@@ -35,6 +40,11 @@ pub struct CreateObservasiPayload {
     pub catatan_lapangan: Option<String>,
     pub foto_path: Option<String>,
     pub ai_confidence: Option<f64>,
+    pub sumber_input: Option<String>,
+    pub sensor_device_id: Option<String>,
+    pub sensor_suhu: Option<f64>,
+    pub sensor_kelembaban: Option<f64>,
+    pub sensor_pir_motion: Option<bool>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

@@ -56,9 +56,26 @@ CREATE TABLE IF NOT EXISTS observasi (
     status_bahaya TEXT NOT NULL CHECK(status_bahaya IN ('AMAN', 'WASPADA', 'BAHAYA')),
     rekomendasi_pht TEXT NOT NULL,
     catatan_lapangan TEXT,
+    sumber_input TEXT DEFAULT 'kamera',
+    sensor_device_id TEXT,
+    sensor_suhu REAL,
+    sensor_kelembaban REAL,
+    sensor_pir_motion INTEGER DEFAULT 0,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS observasi_sensor (
+    id TEXT PRIMARY KEY,
+    observasi_id TEXT NOT NULL UNIQUE REFERENCES observasi(id) ON DELETE CASCADE,
+    device_id TEXT NOT NULL,
+    suhu REAL NOT NULL,
+    kelembaban REAL NOT NULL,
+    pir_motion INTEGER NOT NULL DEFAULT 0,
+    foto_perangkap_url TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_observasi_sensor_obs ON observasi_sensor(observasi_id);
 CREATE INDEX IF NOT EXISTS idx_observasi_user ON observasi(user_id);
 CREATE INDEX IF NOT EXISTS idx_observasi_created ON observasi(created_at);
 CREATE INDEX IF NOT EXISTS idx_ambang_lookup ON ambang_ekonomi(komoditas_id, opt_id, fase_pertumbuhan);

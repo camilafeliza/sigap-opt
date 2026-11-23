@@ -40,6 +40,13 @@ pub async fn init_db(database_url: &str) -> Result<DbPool, Box<dyn std::error::E
         }
     }
 
+    // Auto-migrate kolom sensor ke tabel observasi jika belum ada
+    let _ = conn.execute("ALTER TABLE observasi ADD COLUMN sumber_input TEXT DEFAULT 'kamera'", ()).await;
+    let _ = conn.execute("ALTER TABLE observasi ADD COLUMN sensor_device_id TEXT", ()).await;
+    let _ = conn.execute("ALTER TABLE observasi ADD COLUMN sensor_suhu REAL", ()).await;
+    let _ = conn.execute("ALTER TABLE observasi ADD COLUMN sensor_kelembaban REAL", ()).await;
+    let _ = conn.execute("ALTER TABLE observasi ADD COLUMN sensor_pir_motion INTEGER DEFAULT 0", ()).await;
+
     // Pastikan tabel sensor_telemetry terisi minimal 1 data awal jika kosong
     let mut check_count = conn.query("SELECT COUNT(*) FROM sensor_telemetry", ()).await?;
     let count: i64 = if let Some(row) = check_count.next().await? {
