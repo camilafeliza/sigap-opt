@@ -35,8 +35,8 @@ pub async fn get_latest_telemetry_handler(
             device_id: row.get(1).unwrap_or_default(),
             petak: row.get(2).unwrap_or_default(),
             komoditas: row.get(3).unwrap_or_default(),
-            suhu: row.get(4).unwrap_or(28.5),
-            kelembaban: row.get(5).unwrap_or(75.0),
+            suhu: row.get(4).unwrap_or(0.0),
+            kelembaban: row.get(5).unwrap_or(0.0),
             pir_motion: row.get::<i64>(6).unwrap_or(0) == 1,
             foto_url: row.get(7).ok(),
             created_at: row.get(8).unwrap_or_default(),
@@ -173,7 +173,11 @@ pub async fn list_devices_handler(
             COALESCE(d.sensor_model, 'DHT22 / SHT30'),
             COALESCE(d.pir_pin, 13),
             COALESCE(d.last_ping, d.created_at) as last_ping,
-            (SELECT COUNT(*) FROM sensor_telemetry t WHERE t.device_id = d.device_id AND t.foto_url IS NOT NULL) as photo_count
+            (SELECT COUNT(*) FROM sensor_telemetry t WHERE t.device_id = d.device_id AND t.foto_url IS NOT NULL) as photo_count,
+            CASE 
+                WHEN d.last_ping >= datetime('now', '-90 seconds') THEN 'online'
+                ELSE 'offline'
+            END as computed_status
         FROM iot_devices d
         ORDER BY d.last_ping DESC
     "#;
@@ -186,6 +190,7 @@ pub async fn list_devices_handler(
     let mut list = Vec::new();
     while let Some(row) = rows.next().await.map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))? {
         let photo_count: i64 = row.get(9).unwrap_or(0);
+        let status: String = row.get(10).unwrap_or_else(|_| "offline".to_string());
         list.push(IotDevice {
             id: row.get(0).unwrap_or_default(),
             device_id: row.get(1).unwrap_or_default(),
@@ -195,7 +200,7 @@ pub async fn list_devices_handler(
             camera_model: row.get(5).unwrap_or_default(),
             sensor_model: row.get(6).unwrap_or_default(),
             pir_pin: row.get(7).unwrap_or(13),
-            status: "online".to_string(),
+            status,
             last_ping: row.get(8).ok(),
             has_telemetry: photo_count > 0,
         });
@@ -285,6 +290,7 @@ pub async fn scan_devices_handler(
             COALESCE(d.last_ping, d.created_at) as last_ping,
             (SELECT COUNT(*) FROM sensor_telemetry t WHERE t.device_id = d.device_id AND t.foto_url IS NOT NULL) as photo_count
         FROM iot_devices d
+        WHERE d.last_ping >= datetime('now', '-90 seconds')
         ORDER BY d.last_ping DESC
     "#;
 
@@ -313,9 +319,9 @@ pub async fn scan_devices_handler(
 
     let total = list.len();
     let msg = if total > 0 {
-        format!("{total} perangkat ESP32-CAM & Sensor terdeteksi di jaringan.")
+        format!("{total} modul ESP32-CAM & Sensor aktif terdeteksi di jaringan.")
     } else {
-        "Tidak ada modul ESP32-CAM aktif yang terdeteksi. Silakan nyalakan perangkat atau hubungkan ke jaringan.".to_string()
+        "Tidak ada modul ESP32-CAM aktif yang terdeteksi. Silakan nyalakan perangkat ESP32 fisik atau hubungkan ke Wi-Fi.".to_string()
     };
 
     Ok(Json(DeviceScanResponse {

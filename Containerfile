@@ -19,12 +19,12 @@ COPY src/ ./src/
 COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
 RUN touch src/main.rs && cargo build --release
 
-# Stage 3: Minimal Distroless / Alpine Runtime
-FROM docker.io/library/alpine:3.20 AS runner
-RUN apk add --no-cache ca-certificates tzdata libgcc libstdc++
+# Stage 3: Minimal Runtime
+FROM docker.io/library/debian:bookworm-slim AS runner
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates tzdata sqlite3 curl && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY --from=backend-builder /app/target/release/sigap-opt /app/sigap-opt
 VOLUME /app/data
-ENV DATABASE_URL="file:/app/data/sigap_opt.db" PORT=8080 APP_HOST="::" GEMINI_API_KEY="your-gemini-api-key-here"
+ENV DATABASE_URL="file:/app/data/sigap_opt.db" PORT=8080 APP_HOST="0.0.0.0" GEMINI_API_KEY="your-gemini-api-key-here"
 EXPOSE 8080
 ENTRYPOINT ["/app/sigap-opt"]

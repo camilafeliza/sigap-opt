@@ -26,6 +26,7 @@ import {
   WarningCircle as WarningIcon,
   ShieldCheck as ShieldIcon,
   ChartBar as ChartBarIcon,
+  Broadcast,
   Broadcast as BroadcastIcon,
   Thermometer as ThermometerIcon,
   Drop as DropIcon,
@@ -115,11 +116,10 @@ export default function Observasi() {
   const [inputSource, setInputSource] = createSignal<'kamera' | 'upload' | 'sensor'>('kamera');
   const [sensorTelemetry, setSensorTelemetry] = createSignal<any | null>(null);
   const [isLoadingSensor, setIsLoadingSensor] = createSignal(false);
-  const [isSimulatingSensor, setIsSimulatingSensor] = createSignal(false);
 
   // Deteksi & Status Perangkat Keras Hardware
   const [detectedDevices, setDetectedDevices] = createSignal<IotDevice[]>([]);
-  const [selectedDeviceId, setSelectedDeviceId] = createSignal<string>('ESP32-CAM-01');
+  const [selectedDeviceId, setSelectedDeviceId] = createSignal<string>('');
   const [isScanningDevices, setIsScanningDevices] = createSignal<boolean>(false);
   const [scanMessage, setScanMessage] = createSignal<string>('');
 
@@ -129,18 +129,20 @@ export default function Observasi() {
       const res = await fetch('/api/iot/devices');
       if (res.ok) {
         const devs: IotDevice[] = await res.json();
-        setDetectedDevices(devs);
-        if (devs.length > 0) {
-          setSelectedDeviceId(devs[0].device_id);
+        const activeDevs = (devs || []).filter(d => d.status === 'online');
+        setDetectedDevices(activeDevs);
+        if (activeDevs.length > 0) {
+          setSelectedDeviceId(activeDevs[0].device_id);
           loadLatestTelemetry();
         } else {
+          setSelectedDeviceId('');
           setSensorTelemetry(null);
         }
       }
     } catch (_) {}
   };
 
-  // Pindai / Scan Modul Hardware di Jaringan
+  // Pindai / Scan Modul Hardware Nyata di Jaringan
   const scanForDevices = async () => {
     setIsScanningDevices(true);
     setScanMessage('Memindai sinyal perangkat ESP32-CAM di jaringan...');
@@ -148,48 +150,22 @@ export default function Observasi() {
       const res = await fetch('/api/iot/scan', { method: 'POST' });
       if (res.ok) {
         const data: DeviceScanResponse = await res.json();
-        setDetectedDevices(data.devices || []);
+        const activeDevs = (data.devices || []).filter(d => d.status === 'online');
+        setDetectedDevices(activeDevs);
         setScanMessage(data.message);
-        if (data.devices && data.devices.length > 0) {
-          setSelectedDeviceId(data.devices[0].device_id);
+        if (activeDevs.length > 0) {
+          setSelectedDeviceId(activeDevs[0].device_id);
           toast.success(`${data.total_online} modul hardware aktif terdeteksi!`);
           await loadLatestTelemetry();
         } else {
+          setSelectedDeviceId('');
           setSensorTelemetry(null);
-          toast.warning('Belum ada modul ESP32-CAM yang merespons.');
+          toast.warning('Belum ada modul ESP32-CAM aktif yang terdeteksi.');
         }
       }
     } catch (e) {
       setScanMessage('Gagal menghubungi gateway IoT.');
       toast.error('Gagal memindai perangkat hardware.');
-    } finally {
-      setIsScanningDevices(false);
-    }
-  };
-
-  // Sambungkan Perangkat Uji Lapangan (Untuk Uji Sidang Dosen / Lab)
-  const registerLabDemoDevice = async () => {
-    setIsScanningDevices(true);
-    try {
-      const res = await fetch('/api/iot/ping', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          device_id: 'ESP32-CAM-01',
-          nama_perangkat: 'Stasiun Perangkap Blok A',
-          petak: petak() || 'Blok A - Petak 1',
-          komoditas: komoditas() || 'Cabai',
-          camera_model: 'OV2640',
-          sensor_model: 'DHT22 / SHT30',
-          pir_pin: 13,
-        }),
-      });
-      if (res.ok) {
-        toast.success('Modul ESP32-CAM-01 terdeteksi & online!');
-        await scanForDevices();
-      }
-    } catch (e) {
-      toast.error('Gagal menghubungkan perangkat.');
     } finally {
       setIsScanningDevices(false);
     }
@@ -208,35 +184,6 @@ export default function Observasi() {
       console.error('Failed to load telemetry:', e);
     } finally {
       setIsLoadingSensor(false);
-    }
-  };
-
-  // Pemicu Pengambilan Data Nyata / Tangkapan dari Perangkat Aktif
-  const triggerDeviceCapture = async () => {
-    setIsSimulatingSensor(true);
-    try {
-      const randomTemp = 28.5 + Math.round(Math.random() * 20) / 10;
-      const randomHum = 75 + Math.round(Math.random() * 15);
-      const res = await fetch('/api/iot/telemetry', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          device_id: selectedDeviceId() || 'ESP32-CAM-01',
-          petak: petak() || 'Blok A - Petak 1',
-          komoditas: komoditas() || 'Cabai',
-          suhu: randomTemp,
-          kelembaban: randomHum,
-          pir_motion: true,
-        }),
-      });
-      if (res.ok) {
-        toast.success('Data telemetri terbaru dari sensor berhasil diterima!');
-        await loadLatestTelemetry();
-      }
-    } catch (e) {
-      toast.error('Gagal merekam data dari sensor.');
-    } finally {
-      setIsSimulatingSensor(false);
     }
   };
 
@@ -995,12 +942,12 @@ export default function Observasi() {
                       </div>
                     </Show>
 
-                    {/* Mode 3: Stasiun Sensor IoT (Wajib Deteksi CAM & Sensor) */}
+                    {/* Mode 3: Stasiun Sensor IoT (Wajib Deteksi CAM & Sensor Nyata) */}
                     <Show when={inputSource() === 'sensor'}>
                       <Show
                         when={detectedDevices().length > 0}
                         fallback={
-                          /* State A: Belum Terdeteksi -> Wajib Pindai Hardware */
+                          /* State A: Belum Terdeteksi -> Wajib Pindai Hardware Nyata */
                           <div class="p-5 bg-slate-50 dark:bg-slate-800/80 border-2 border-dashed border-violet-300 dark:border-violet-800/70 rounded-2xl space-y-4 text-center">
                             <div class="w-14 h-14 mx-auto rounded-2xl bg-violet-100 dark:bg-violet-950/60 text-violet-700 dark:text-violet-300 flex items-center justify-center shadow-inner">
                               <BroadcastIcon size={28} weight={isScanningDevices() ? "fill" : "duotone"} class={isScanningDevices() ? "animate-pulse" : ""} />
@@ -1015,7 +962,7 @@ export default function Observasi() {
                               </span>
                             </div>
 
-                            {/* Checklist Diagnostik Hardware */}
+                            {/* Checklist Diagnostik Hardware Nyata */}
                             <div class="p-3 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 text-left space-y-2">
                               <span class="text-[10px] font-display font-bold uppercase tracking-wider text-slate-400 block">
                                 Status Sambungan Hardware
@@ -1025,22 +972,28 @@ export default function Observasi() {
                                   <CameraIcon size={14} weight="bold" class="text-slate-400" />
                                   <span>Kamera OV2640</span>
                                 </span>
-                                <span class="text-[11px] font-bold text-slate-400">Belum Terdeteksi</span>
+                                <span class="text-[11px] font-bold text-amber-600 dark:text-amber-400">Offline (Belum Terdeteksi)</span>
                               </div>
                               <div class="flex items-center justify-between text-xs font-data">
                                 <span class="flex items-center gap-1.5 text-slate-700 dark:text-slate-300">
                                   <ThermometerIcon size={14} weight="bold" class="text-slate-400" />
                                   <span>Sensor Suhu & Kelembaban (DHT/SHT)</span>
                                 </span>
-                                <span class="text-[11px] font-bold text-slate-400">Belum Terdeteksi</span>
+                                <span class="text-[11px] font-bold text-amber-600 dark:text-amber-400">Offline (Belum Terdeteksi)</span>
                               </div>
                               <div class="flex items-center justify-between text-xs font-data">
                                 <span class="flex items-center gap-1.5 text-slate-700 dark:text-slate-300">
                                   <LightningIcon size={14} weight="bold" class="text-slate-400" />
-                                  <span>Sensor PIR Gerak (GPIO13)</span>
+                                  <span>Sensor PIR Gerak</span>
                                 </span>
-                                <span class="text-[11px] font-bold text-slate-400">Belum Terdeteksi</span>
+                                <span class="text-[11px] font-bold text-amber-600 dark:text-amber-400">Offline (Belum Terdeteksi)</span>
                               </div>
+                            </div>
+
+                            <div class="p-3 bg-violet-50 dark:bg-violet-950/40 rounded-xl border border-violet-200 dark:border-violet-800 text-left">
+                              <span class="text-[11px] font-data text-violet-800 dark:text-violet-300 leading-relaxed block">
+                                ℹ️ Nyalakan modul ESP32-CAM fisik di lapangan dan pastikan terhubung ke jaringan Wi-Fi. Data telemetri dan foto hanya akan muncul saat perangkat fisik terhubung dan mentransmisikan data.
+                              </span>
                             </div>
 
                             <div class="space-y-2 pt-1">
@@ -1053,26 +1006,17 @@ export default function Observasi() {
                                 <BroadcastIcon size={16} weight="bold" class={isScanningDevices() ? "animate-spin" : ""} />
                                 <span>{isScanningDevices() ? 'Memindai Jaringan...' : '🔍 Pindai Modul CAM & Sensor'}</span>
                               </button>
-                              
-                              <button
-                                type="button"
-                                onClick={registerLabDemoDevice}
-                                disabled={isScanningDevices()}
-                                class="w-full py-2 px-3 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 font-display font-semibold text-[11px] flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
-                              >
-                                <span>⚡ Sambungkan Perangkat Uji Lapangan (ESP32-CAM-01)</span>
-                              </button>
                             </div>
                           </div>
                         }
                       >
-                        {/* State B: Hardware Terdeteksi -> Tampilkan Kontrol & Telemetri */}
+                        {/* State B: Hardware Terdeteksi -> Tampilkan Kontrol & Telemetri Nyata */}
                         <div class="p-4 bg-slate-50 dark:bg-slate-800/60 border border-emerald-300 dark:border-emerald-800/80 rounded-2xl space-y-3">
                           <div class="flex items-center justify-between pb-2 border-b border-slate-200 dark:border-slate-700">
                             <div class="flex items-center gap-2">
                               <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
                               <span class="font-display font-bold text-xs text-slate-900 dark:text-slate-100">
-                                {detectedDevices()[0]?.device_id || 'ESP32-CAM-01'}
+                                {detectedDevices()[0]?.nama_perangkat || detectedDevices()[0]?.device_id}
                               </span>
                               <span class="px-2 py-0.5 rounded-md bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 font-data font-bold text-[10px]">
                                 TERVERIFIKASI ONLINE
@@ -1087,38 +1031,38 @@ export default function Observasi() {
                             </button>
                           </div>
 
-                          {/* Chips Status Hardware */}
+                          {/* Chips Status Hardware Dinamis */}
                           <div class="grid grid-cols-3 gap-1.5 py-1 text-center font-data text-[10px]">
                             <div class="p-1.5 rounded-lg bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700">
                               <span class="text-slate-400 block font-bold">KAMERA</span>
-                              <span class="font-bold text-emerald-600 dark:text-emerald-400">OV2640 Siap</span>
+                              <span class="font-bold text-emerald-600 dark:text-emerald-400">{detectedDevices()[0]?.camera_model || 'OV2640'}</span>
                             </div>
                             <div class="p-1.5 rounded-lg bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700">
                               <span class="text-slate-400 block font-bold">SUHU/RH</span>
-                              <span class="font-bold text-emerald-600 dark:text-emerald-400">Sensor Aktif</span>
+                              <span class="font-bold text-emerald-600 dark:text-emerald-400">{detectedDevices()[0]?.sensor_model || 'DHT22'}</span>
                             </div>
                             <div class="p-1.5 rounded-lg bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700">
                               <span class="text-slate-400 block font-bold">PIR GERAK</span>
-                              <span class="font-bold text-emerald-600 dark:text-emerald-400">GPIO13 Aktif</span>
+                              <span class="font-bold text-emerald-600 dark:text-emerald-400">GPIO{detectedDevices()[0]?.pir_pin ?? 13}</span>
                             </div>
                           </div>
 
-                          {/* Data Telemetri Terkini */}
+                          {/* Data Telemetri Terkini Nyata */}
                           <Show
                             when={sensorTelemetry()}
                             fallback={
                               <div class="p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-center space-y-2">
                                 <p class="font-data text-xs text-slate-500 dark:text-slate-400">
-                                  Hardware terverifikasi online. Belum ada tangkapan foto perangkap dari modul ini.
+                                  Hardware online. Belum ada data telemetri atau foto perangkap masuk dari modul ini.
                                 </p>
                                 <button
                                   type="button"
-                                  onClick={triggerDeviceCapture}
-                                  disabled={isSimulatingSensor()}
-                                  class="py-2 px-3 rounded-xl bg-orange-600 hover:bg-orange-700 text-white font-display font-bold text-xs inline-flex items-center gap-1.5 shadow-sm cursor-pointer"
+                                  onClick={loadLatestTelemetry}
+                                  disabled={isLoadingSensor()}
+                                  class="py-2 px-3 rounded-xl bg-violet-600 hover:bg-violet-700 text-white font-display font-bold text-xs inline-flex items-center gap-1.5 shadow-sm cursor-pointer"
                                 >
-                                  <CameraIcon size={14} weight="bold" />
-                                  <span>{isSimulatingSensor() ? 'Merekam...' : 'Ambil Tangkapan Perangkap Sekarang'}</span>
+                                  <BroadcastIcon size={14} weight="bold" class={isLoadingSensor() ? "animate-spin" : ""} />
+                                  <span>{isLoadingSensor() ? 'Memeriksa...' : '🔄 Periksa Pembaruan Sensor'}</span>
                                 </button>
                               </div>
                             }
@@ -1131,7 +1075,7 @@ export default function Observasi() {
                                     <div class="flex items-center gap-1 text-orange-500 mb-0.5">
                                       <ThermometerIcon size={14} weight="bold" />
                                       <span class="font-data font-bold text-xs">
-                                        {tele().suhu ? `${tele().suhu}°C` : '-'}
+                                        {tele().suhu != null && tele().suhu > 0 ? `${tele().suhu}°C` : '-'}
                                       </span>
                                     </div>
                                     <span class="font-data text-[9px] text-slate-400">Suhu Udara</span>
@@ -1141,7 +1085,7 @@ export default function Observasi() {
                                     <div class="flex items-center gap-1 text-blue-500 mb-0.5">
                                       <DropIcon size={14} weight="bold" />
                                       <span class="font-data font-bold text-xs">
-                                        {tele().kelembaban ? `${tele().kelembaban}%` : '-'}
+                                        {tele().kelembaban != null && tele().kelembaban > 0 ? `${tele().kelembaban}%` : '-'}
                                       </span>
                                     </div>
                                     <span class="font-data text-[9px] text-slate-400">Kelembaban</span>
@@ -1164,15 +1108,15 @@ export default function Observasi() {
                                   fallback={
                                     <div class="p-3 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/60 flex items-center justify-between text-xs">
                                       <span class="font-data text-amber-900 dark:text-amber-200 text-[11px]">
-                                        Menunggu jepretan foto perangkap dari kamera ESP32...
+                                        Menunggu jepretan foto perangkap dikirim oleh kamera ESP32...
                                       </span>
                                       <button
                                         type="button"
-                                        onClick={triggerDeviceCapture}
-                                        disabled={isSimulatingSensor()}
-                                        class="py-1 px-2.5 rounded-lg bg-orange-600 hover:bg-orange-700 text-white font-display font-bold text-[11px] cursor-pointer"
+                                        onClick={loadLatestTelemetry}
+                                        disabled={isLoadingSensor()}
+                                        class="py-1 px-2.5 rounded-lg bg-violet-600 hover:bg-violet-700 text-white font-display font-bold text-[11px] cursor-pointer"
                                       >
-                                        Jepret
+                                        Cek Foto
                                       </button>
                                     </div>
                                   }
@@ -1200,13 +1144,13 @@ export default function Observasi() {
                                     </button>
                                     <button
                                       type="button"
-                                      onClick={triggerDeviceCapture}
-                                      disabled={isSimulatingSensor()}
+                                      onClick={loadLatestTelemetry}
+                                      disabled={isLoadingSensor()}
                                       class="py-2 px-3 rounded-xl bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 font-display font-bold text-xs flex items-center justify-center gap-1 transition-colors cursor-pointer"
-                                      title="Ambil Tangkapan Baru dari Sensor"
+                                      title="Segarkan Data Sensor"
                                     >
-                                      <LightningIcon size={14} weight="bold" />
-                                      <span>{isSimulatingSensor() ? 'Merekam...' : 'Jepret Baru'}</span>
+                                      <BroadcastIcon size={14} weight="bold" class={isLoadingSensor() ? "animate-spin" : ""} />
+                                      <span>Segarkan</span>
                                     </button>
                                   </div>
                                 </Show>
@@ -1621,7 +1565,7 @@ export default function Observasi() {
                         </span>
                         <Show when={obs.sumber_input === 'sensor_iot' || obs.sensor_device_id}>
                           <span class="inline-flex items-center gap-1 text-[9px] font-bold text-violet-700 dark:text-violet-300 bg-violet-100 dark:bg-violet-950/70 border border-violet-200 dark:border-violet-800 px-1.5 py-0.5 rounded-md">
-                            <Broadcast size={10} weight="bold" />
+                            <BroadcastIcon size={10} weight="bold" />
                             <span>IoT</span>
                           </span>
                         </Show>
@@ -1708,7 +1652,7 @@ export default function Observasi() {
                 <div class="p-3 rounded-xl bg-violet-50 dark:bg-violet-950/40 border border-violet-200 dark:border-violet-800 space-y-2">
                   <div class="flex items-center justify-between">
                     <div class="flex items-center gap-1.5 text-violet-700 dark:text-violet-300 font-display font-bold text-[11px]">
-                      <Broadcast size={14} weight="bold" />
+                      <BroadcastIcon size={14} weight="bold" />
                       <span>Telemetri Stasiun Sensor IoT</span>
                     </div>
                     <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-violet-200 text-violet-800 dark:bg-violet-900/60 dark:text-violet-200">
@@ -1895,7 +1839,7 @@ export default function Observasi() {
                 <div class="p-3 rounded-xl bg-violet-50 dark:bg-violet-950/40 border border-violet-200 dark:border-violet-800 space-y-2">
                   <div class="flex items-center justify-between">
                     <div class="flex items-center gap-1.5 text-violet-700 dark:text-violet-300 font-display font-bold text-[11px]">
-                      <Broadcast size={14} weight="bold" />
+                      <BroadcastIcon size={14} weight="bold" />
                       <span>Telemetri Stasiun Sensor IoT</span>
                     </div>
                     <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-violet-200 text-violet-800 dark:bg-violet-900/60 dark:text-violet-200">
