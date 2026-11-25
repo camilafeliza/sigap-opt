@@ -7,7 +7,7 @@ services:
       context: .
       dockerfile: Containerfile
     image: localhost/sigap-opt:latest
-    container_name: posix-enginer-so
+    container_name: posix-engine-so
     ports:
       - "8080:8080"
     environment:

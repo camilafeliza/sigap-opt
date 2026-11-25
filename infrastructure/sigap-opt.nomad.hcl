@@ -51,7 +51,7 @@ job "sigap-opt" {
       }
     }
 
-    task "posix-enginer-so" {
+    task "posix-engine-so" {
       driver = "podman"
 
       vault {
@@ -59,7 +59,7 @@ job "sigap-opt" {
       }
 
       config {
-        image = "localhost/posix-enginer-so:latest"
+        image = "localhost/posix-engine-so:latest"
         ports = ["http"]
         volumes = [
           "/opt/ntmy-persistent/.posix-engine-op/data:/app/data"
