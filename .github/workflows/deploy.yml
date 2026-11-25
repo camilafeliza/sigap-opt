@@ -1,0 +1,33 @@
+name: Deploy sigap-opt to NATAMAYA Nomad Cluster
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Build & Deploy to Nomad
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Connect to Tailscale Network
+        uses: tailscale/github-action@v2
+        with:
+          authkey: ${{ secrets.TAILSCALE_AUTHKEY }}
+          args: --accept-routes
+
+      - name: Set up Nomad CLI
+        uses: hashicorp/setup-nomad@v1.0.0
+        with:
+          version: "1.8.3"
+
+      - name: Submit Job to Nomad Cluster
+        env:
+          NOMAD_ADDR: ${{ secrets.NOMAD_ADDR }}
+          NOMAD_TOKEN: ${{ secrets.NOMAD_TOKEN }}
+        run: |
+          nomad status
+          nomad job run infrastructure/sigap-opt.nomad.hcl
