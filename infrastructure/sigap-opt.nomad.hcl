@@ -59,8 +59,9 @@ job "sigap-opt" {
       }
 
       config {
-        image = "localhost/posix-engine-so:latest"
-        ports = ["http"]
+        image      = "localhost/posix-engine-so:latest"
+        force_pull = false
+        ports      = ["http"]
         volumes = [
           "/opt/ntmy-persistent/.posix-engine-op/data:/app/data"
         ]
